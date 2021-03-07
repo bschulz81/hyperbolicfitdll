@@ -1,9 +1,31 @@
 # hyperbolicfitdll
 // This is an open source library that can help to autofocus telescopes. The library fits half flux diameter data to a hyperbola, from which the correct focus point can be 
-// interpolated. The library uses various robust statistical outlier detection methods. It is currently used in the software Astro Photography tool (APT).
+// interpolated. 
+
+// The library is currently used in preview version of the software Astro Photography tool (APT) for // the autofocus routine.
+
+// The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. In order to decide if data outside of a given combination should be added to a final configuration of points, various robust statistical outlier detection methods are used. If a point is not considered an outlier, it is added to the combination and a fit for the entire set is made. Then, the process starts from another selected combination.
+
+// The library makes use of an algorithm for student's distribution, which can be found at
+// Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
+
+// The library also makes use of Peirce's outlier test. An algorithm for this method was developed in
+// Gould, B. A, Astronomical Journal, vol. 4, iss. 83, p. 81 - 87 (1855).
+
+// The library also has the possibility to use MAD, S and Q estimators. 
+
+// These estimators are extensively described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
+
+// Christophe Croux and Peter J.Rousseeuw, Time-effcient algorithms for two highly robust estimators of scale, 
+// In: Dodge Y., Whittaker J. (eds) Computational Statistics. Physica, Heidelberg, https ://doi.org/10.1007/978-3-662-26811-7_58
+
+// The library has the option that one can use Siegel's repeated median from
+// Siegel, Andrew (September 1980). "Technical Report No. 172, Series 2 By Department of Statistics Princeton University: Robust Regression Using Repeated Medians" within the
+// RANSAC. Otherwise, the RANSAC will use an algorithm for the hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+
 
 // Currently, the library has two functions:
-
 
 // The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes a linear
 // regression with a least square 
