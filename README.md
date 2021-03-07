@@ -6,6 +6,10 @@
 
 // A test application is provided which contains some historical data and where the user can input his own hfd data. The application then runs the hyperbolic fit functions from // the library with various parameters (different statistical estimators and fitting methods) and displays the computed focus point, the found outliers and the average errors of // the fit for the various methods.  
 
+// the source code is provided in the folder /source
+// an x86 and an x64 version of the dll is provided in the binaries folder.
+// in the binaries folder, there is also a folder with a binary of the x86 test application together with the necessary c++ runtime dll's from Microsoft Visual Studio that the // application needs to run.
+
 // The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. 
 // In order to decide if data outside of a given combination should be added to a final configuration of points, various robust statistical outlier
 // detection methods are used. If a point is not considered an outlier, it is added to the combination and a fit for the entire set is made.
