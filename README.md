@@ -2,9 +2,14 @@
 // This is an open source library that can help to autofocus telescopes. The library fits half flux diameter data to a hyperbola, from which the correct focus point can be 
 // interpolated. 
 
-// The library is currently used in preview version of the software Astro Photography tool (APT) for // the autofocus routine.
+// The library is currently used in preview version of the software Astro Photography tool (APT) for the autofocus routine.
 
-// The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. In order to decide if data outside of a given combination should be added to a final configuration of points, various robust statistical outlier detection methods are used. If a point is not considered an outlier, it is added to the combination and a fit for the entire set is made. Then, the process starts from another selected combination.
+// A test application is provided which contains some historical data and where the user can input his own hfd data. The application then runs the hyperbolic fit functions from // the library with various parameters (different statistical estimators and fitting methods) and displays the computed focus point, the found outliers and the average errors of // the fit for the various methods.  
+
+// The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. 
+// In order to decide if data outside of a given combination should be added to a final configuration of points, various robust statistical outlier
+// detection methods are used. If a point is not considered an outlier, it is added to the combination and a fit for the entire set is made.
+// Then, the process starts from another selected combination.
 
 // The library makes use of an algorithm for student's distribution, which can be found at
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
