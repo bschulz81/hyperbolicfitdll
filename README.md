@@ -22,16 +22,15 @@
 
 // The library has the option that one can use Siegel's repeated median from
 // Siegel, Andrew (September 1980). "Technical Report No. 172, Series 2 By Department of Statistics Princeton University: Robust Regression Using Repeated Medians" within the
-// RANSAC. Otherwise, the RANSAC will use an algorithm for the hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+// RANSAC. 
+// In practice, repeated median regression is a rather slow fitting method. If median regression is not used, the RANSAC will use a faster linear regression algorithm for the 
+// hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
 
 
 // Currently, the library has two functions:
 
-// The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes a linear
-// regression with a least square 
-// error comparison. If specified, the RANSAC can also use repeaded median regression.
-// The algorithm for the linear regression that is used by the RANSAC was first published by Stephen King (username STEVE333), at
-// https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998
+// The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes either a linear
+// regression with a least square error comparison or Siegel's repeated median regression. 
 
 // focusposition_Regression expects the following arguments:
 
