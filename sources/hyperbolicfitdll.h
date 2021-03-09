@@ -90,9 +90,18 @@ using namespace std;
 // removedpoints_line_x and removedpoints_line_y are pointers to two vectors. If the pointers are not NULL, the vectors contain the points which were not used in the fit
 // in the coordinate system where the hyperbola is a line. One can plot them together with the line  given by Y=slope*(x-focpos)^2+intercept
 
+
+// The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
+// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fitt with the added point is then made and the process is repeated with another initial combination of points.
+// 
+// The initial combination is selected randomly if the binominal coefficient of the number of points over the number of outliers is larger than 20 over 10. Otherwise, the combinations are searched deterministically.
+// 
 // stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
 // stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
+// 
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient of the number of points over the number of outliers is larger than 20 over 10.
+
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
 // the focuser backslash, for example by setting a suitable overshoor or a final_inwards_movement in APT or a different software or hardware correction of the backslash, set this parameter to 0
@@ -115,9 +124,11 @@ using namespace std;
 
 
 // rejection_method  is a parameter that specifies the method which is used to reject outliers.
-// Assume you have n datapoints.The ransac works by searching through either all or (if there are many outliers to remove) randomly generated so - called minimal combinations
+// Assume you have n datapoints. The algorithm works by searching through either all or (if the binominal coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
 // of m=n - maximum_number_of_outliers points.
-// The ransac searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
+// 
+// 
+// The algorithm searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
 // For each minimal combination, the points outside of this minimal set of m points are considered. 
 
 // The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x). 
@@ -243,4 +254,3 @@ extern "C" HYPERBOLICFIT_API bool findbackslash_Regression(long* backslash,
 	vector<double>*used_points2_line_x=NULL, vector<double>*used_points2_line_y=NULL, vector<size_t>*indicesofremovedpoints2=NULL, vector<double>*removedpoints2_line_x=NULL, vector<double>*removedpoints2_line_y=NULL,
 	double stop_after_seconds = 30, size_t stop_after_numberofiterations_without_improvement = 2000, double scale = 1.5, bool use_median_regression = false,
 	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_multiplies_standard_deviation_of_error, double tolerance = 2);
-

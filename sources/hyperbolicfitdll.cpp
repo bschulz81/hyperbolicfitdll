@@ -887,7 +887,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	}
 
 	double k;
-	if ((maximum_number_of_outliers<2) || (pointnumber <= 18))
+	if (binominal(pointnumber,maximum_number_of_outliers)<=(size_t) 184756)
 	{
 		do
 		{
@@ -908,9 +908,9 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	{
 		double seconds = 0;
 		size_t counter1 = 0;
-		default_random_engine g = std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count());
+		std::random_device rng;
+		std::mt19937 urng(rng());
 		auto start = std::chrono::steady_clock::now();
-		
 		do
 		{
 			Ransac_regression(&x, &y,&line_y, pointnumber,minfocus,maxfocus,scale, indices, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept,&thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
@@ -925,7 +925,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				removedindices = thisremovedindices;
 				counter1 = 0;
 			}
-			shuffle(indices.begin(), indices.end(), g);
+			shuffle(indices.begin(), indices.end(), urng);
 			if (counter1 == stop_after_numberofiterations_without_improvement)
 			{
 				break;
@@ -1026,4 +1026,6 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
+
+
 
