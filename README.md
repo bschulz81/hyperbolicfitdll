@@ -81,7 +81,7 @@
 
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
-// the focuser backslash, for example by setting a suitable overshoor or a final_inwards_movement in APT or a different software or hardware correction of the backslash, set this parameter to 0
+// the focuser backslash, for example by setting a suitable overshoot or a final_inwards_movement in APT or a different software or hardware correction of the backslash, set this parameter to 0
 
 
 // scale is a parameter of the type double that specifies the size of the interval of motor positions where the best focusposition is searched for. 
