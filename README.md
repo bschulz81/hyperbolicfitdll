@@ -38,8 +38,9 @@
 
 // Currently, the library has two functions:
 
-// The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes either a linear
-// regression with a least square error comparison or Siegel's repeated median regression. 
+// The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes a linear regression with a least square 
+// error comparison. If specified, the RANSAC can also use repeaded median regression.
+// The algorithm for the linear regression that is used by the RANSAC was first published by Stephen King (username STEVE333), at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998
 
 // focusposition_Regression expects the following arguments:
 
@@ -47,12 +48,10 @@
 // a vector <double> y. The hfd value of a star or a star field corresponding to motor position x [ i ] is assumed to be y [ i ] .
 // both x and y should have at least 4 points.
 
-// If the function terminates successfully, the pointer focpos contains the estimated focusposition as a variable of type long that the function computes. 
-// This pointer must not be NULL if the
+// If the function terminates successfully, the pointer focpos contains the estimated focusposition as a variable of type long that the function computes. This pointer must not be NULL if the
 // function is to terminate successfully
 
-// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the absolute values of the differences between 
-// the best fit and the measurement data. 
+// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the absolute values of the differences between the best fit and the measurement data. 
 
 
 // main_slope and main_intercept are pointers to double values. If the pointers are not NULL, their values will be the slope and intercept of a line given by
@@ -60,22 +59,29 @@
 
 // indices_of_used_points is a pointer to a vector which, if not NULL, will contain the indices i of the points in x [i] and y [i] that were used for the fit.
 
-// usedpoints_line_x and usedpoints_line_y are pointers to two vectors for the datatype double. If the pointers are not NULL, the vectors contain the points which are
-// used in the fit in a coordinate system where the hyperbola is a line. One can plot them together with the line  given by Y=slope*(x-focpos)^2+intercept
+// usedpoints_line_x and usedpoints_line_y are pointers to two vectors for the datatype double. If the pointers are not NULL, the vectors contain the points which are used in the fit
+// in a coordinate system where the hyperbola is a line. One can plot them together with the line  given by Y=slope*(x-focpos)^2+intercept
 
 // indices_of_removedpoints is a pointer to a vector which, if not NULL, will contain the indices i of the points in x [i] and y [i] that were not used for the fit
 
 // removedpoints_line_x and removedpoints_line_y are pointers to two vectors. If the pointers are not NULL, the vectors contain the points which were not used in the fit
 // in the coordinate system where the hyperbola is a line. One can plot them together with the line  given by Y=slope*(x-focpos)^2+intercept
 
-// stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
-// stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by 
-// stop_after_numberofiterations_without_improvement iterations
-// without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 
-// backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have 
-// taken account of the focuser backslash, for example by setting a suitable overshoor or a final_inwards_movement in APT or a different software or hardware
-// correction of the backslash, set this parameter to 0
+// The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
+// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fitt with the added point is then made and the process is repeated with another initial combination of points.
+// 
+// The initial combination is selected randomly if the binominal coefficient of the number of points over the number of outliers is larger than 20 over 10. Otherwise, the combinations are searched deterministically.
+// 
+// stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
+// stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
+// without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
+// 
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient of the number of points over the number of outliers is larger than 20 over 10.
+
+
+// backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
+// the focuser backslash, for example by setting a suitable overshoor or a final_inwards_movement in APT or a different software or hardware correction of the backslash, set this parameter to 0
 
 
 // scale is a parameter of the type double that specifies the size of the interval of motor positions where the best focusposition is searched for. 
@@ -85,8 +91,7 @@
 // If an initial search finds the best focus point exactly at the right edge of the measurement interval of motor positions,
 // then, if scale>1, the right side of the interval where the best focus is searched is enlarged. The new right boundary is then given by
 // max = middle + (max - middle) * abs(scale)
-// Similarly, if an initial search finds the best focus point exactly on the left side of the measurement interval, the search interval is enlarged, with the new
-// left boundary given by
+// Similarly, if an initial search finds the best focus point exactly on the left side of the measurement interval, the search interval is enlarged, with the new left boundary given by
 // min = (middle - (middle - min) * abs(scale).
 
 // use_median_regression is a parameter that specifies whether the RANSAC uses a simple linear regression or a median regression.
@@ -96,9 +101,11 @@
 
 
 // rejection_method  is a parameter that specifies the method which is used to reject outliers.
-// Assume you have n datapoints.The ransac works by searching through either all or (if there are many outliers to remove) randomly generated so - called minimal combinations
+// Assume you have n datapoints. The algorithm works by searching through either all or (if the binominal coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
 // of m=n - maximum_number_of_outliers points.
-// The ransac searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
+// 
+// 
+// The algorithm searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
 // For each minimal combination, the points outside of this minimal set of m points are considered. 
 
 // The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x). 
@@ -114,8 +121,7 @@
 
 // err_p*err_p<=abs(tolerance).
 
-// The RANSAC then computes an overall fit with this combination, and then constructs a new set based on a different minimal mode, until the best combination of
-// points was found. 
+// The RANSAC then computes an overall fit with this combination, and then constructs a new set based on a different minimal mode, until the best combination of points was found. 
 
 // To specify the tolerable error directly is useful if the largest tolerable error is known, e.g. from a measurement of the seeing. By taking a series of images, 
 // an application may measure the random deviation of the hfd from the average that stars have. With outlier detection methods, one can remove the outliers of large amplitudes.
@@ -129,8 +135,7 @@
 
 // (err_p-a)<= tolerance*s. 
 
-// where a and s are the average and standard deviation of the errors err_p for each measured point with respect to the fit of the given minimal combination w that
-// the algorithm tries.
+// where a and s are the average and standard deviation of the errors err_p for each measured point with respect to the fit of the given minimal combination w that the algorithm tries.
 
 // If most of your data is good, then a is rather small and you may want to include most points. 
 // In that case, set tolerance=1, for example. This excludes only the largest errors that arose from seeing.
@@ -138,8 +143,7 @@
 // However, assume that for some motor positions far away from the focus point, the hfd values do not follow a hyperbola at all and therefore deviate much. 
 // Or assume that you have a large seeing error and you need to throw many points away.
 
-// In that case, your data has many points which have a very large error or difference when compared to a hyperbola. And only a subset of the data close to the 
-// focus point may have a small error. 
+// In that case, your data has many points which have a very large error or difference when compared to a hyperbola. And only a subset of the data close to the focus point may have a small error. 
 // In order to exclude larger datasets which do not correspond to a hyperbola at all, you would only want to retain errors which are smaller than the average error a. 
 // In that case, set tolerance=-1 or even -2 if many of your points do have very large errors.
 
@@ -165,6 +169,7 @@
 // where median(err_p) is the median of the errors, and estimator is then the MAD, Q, S or T estimator. Q and S estimators are better suited for asymmetric distributions.
 
 // if MAD, Q, or S estimators are used. the tolerance parameter should be around 2...3.
+
 
 // if 
 // rejection_method==tolerance_is_significance_in_Grubbs_test,
