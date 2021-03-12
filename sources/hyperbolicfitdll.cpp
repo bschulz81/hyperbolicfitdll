@@ -544,6 +544,8 @@ inline double MAD_estimator(vector<double>* err,double *m)
 	return  c * 1.4826 * median(&m1);
 }
 
+
+
 inline double T_estimator(vector<double>* err)
 {
 	
@@ -702,9 +704,8 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 				}
 				case tolerance_is_significance_in_Grubbs_test:
 				{
-
-					double G = fabs(average - mp[j].error) / stdev;
-					if (G > additionaldata)
+					double G = fabs(mp[j].error-average);
+					if (G > additionaldata*stdev)
 					{
 						isoutlier = true;
 					}
@@ -792,7 +793,7 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 	}
 	return true;
 }
-
+#include <iostream>
 bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
 	vector<size_t>* indices_of_used_points,
 	vector<double>* usedpoints_line_x, vector<double>* usedpoints_line_y, vector<size_t>* indices_of_removedpoints, vector<double>* removedpoints_line_x, vector<double>* removedpoints_line_y,
@@ -887,7 +888,8 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	}
 
 	double k;
-	if (binominal(pointnumber,maximum_number_of_outliers)<=(size_t) 184756)
+	size_t counter1 = 0;
+	if (binominal(pointnumber,maximum_number_of_outliers)<=(size_t)184756)
 	{
 		do
 		{
@@ -906,13 +908,13 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	}
 	else
 	{
-		double seconds = 0;
-		size_t counter1 = 0;
+		auto start = std::chrono::steady_clock::now();
 		std::random_device rng;
 		std::mt19937 urng(rng());
-		auto start = std::chrono::steady_clock::now();
+		double seconds = 0;
 		do
 		{
+			shuffle(indices.begin(), indices.end(), urng);
 			Ransac_regression(&x, &y,&line_y, pointnumber,minfocus,maxfocus,scale, indices, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept,&thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
 			k = thiserr / thisusedindices.size();
 			if (k < error)
@@ -925,7 +927,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				removedindices = thisremovedindices;
 				counter1 = 0;
 			}
-			shuffle(indices.begin(), indices.end(), urng);
+			
 			if (counter1 == stop_after_numberofiterations_without_improvement)
 			{
 				break;
@@ -1026,6 +1028,3 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
-
-
-
