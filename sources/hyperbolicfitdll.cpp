@@ -793,7 +793,6 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 	}
 	return true;
 }
-#include <iostream>
 bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
 	vector<size_t>* indices_of_used_points,
 	vector<double>* usedpoints_line_x, vector<double>* usedpoints_line_y, vector<size_t>* indices_of_removedpoints, vector<double>* removedpoints_line_x, vector<double>* removedpoints_line_y,
