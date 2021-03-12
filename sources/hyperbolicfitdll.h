@@ -229,7 +229,7 @@ typedef enum
 HYPERBOLICFIT_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
 	vector<size_t>* indices_of_used_points = NULL,
 	vector<double>* usedpoints_line_x = NULL, vector<double>* usedpoints_line_y = NULL, vector<size_t>* indices_of_removedpoints = NULL, vector<double>* removedpoints_line_x = NULL, vector<double>* removedpoints_line_y = NULL,
-	double stop_after_seconds = 30, size_t stop_after_numberofiterations_without_improvement = 2000, long backslash = 0, double scale = 1.5, bool use_median_regression = false, 
+	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, long backslash = 0, double scale = 1.5, bool use_median_regression = false,
 	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method= tolerance_multiplies_standard_deviation_of_error, double tolerance = 3);
 
 // The function findbackslash finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
@@ -252,5 +252,5 @@ extern "C" HYPERBOLICFIT_API bool findbackslash_Regression(long* backslash,
 	vector<double>*used_points1_line_x=NULL, vector<double>*used_points1_line_y=NULL, vector<size_t>*indicesofremovedpoints1=NULL, vector<double>*removedpoints1_line_x=NULL, vector<double>*removedpoints1_line_y=NULL,
 	double* main_error2=NULL, double* main_slope2=NULL, double* main_intercept2=NULL, vector<size_t>*indicesofusedpoints2 = NULL,
 	vector<double>*used_points2_line_x=NULL, vector<double>*used_points2_line_y=NULL, vector<size_t>*indicesofremovedpoints2=NULL, vector<double>*removedpoints2_line_x=NULL, vector<double>*removedpoints2_line_y=NULL,
-	double stop_after_seconds = 30, size_t stop_after_numberofiterations_without_improvement = 2000, double scale = 1.5, bool use_median_regression = false,
+	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.5, bool use_median_regression = false,
 	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_multiplies_standard_deviation_of_error, double tolerance = 2);
