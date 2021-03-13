@@ -544,6 +544,29 @@ inline double MAD_estimator(vector<double>* err,double *m)
 	return  c * 1.4826 * median(&m1);
 }
 
+inline double onestepbiweightmidvariance(vector<double>* err,double *median)
+{
+	double mad=MAD_estimator(err, median);
+	double p1 = 0.0, p2 = 0.0;
+	for (size_t i = 0; i < (*err).size(); i++)
+	{
+		double ui = ((*err)[i] - *median) / (9.0 * mad);
+		if (fabs(ui) < 1.0)
+		{
+			double ui2 = ui * ui;
+			double g1 = (*err)[i] - *median;
+			double g2 = (1.0 - ui2);
+			p1 += g1 * g1*pow(g2,4.0);
+			p2 += g2 * (1.0 - 5.0 * ui2);
+		}
+	}
+
+	return (sqrt((*err).size()) *  sqrt(p1) / fabs(p2));
+
+}
+
+
+
 
 
 inline double T_estimator(vector<double>* err)
@@ -634,7 +657,7 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 
 	if (mp.size() > 0)
 	{
-		double m = 0, MAD = 0, average = 0, stdev = 0, S = 0, Q = 0,T=0;
+		double m = 0, MAD = 0, average = 0, stdev = 0, S = 0, Q = 0,T=0,midweighbivariance=0;
 
 		switch (rejection_method)
 		{
@@ -651,6 +674,11 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 			case tolerance_is_decision_in_MAD_ESTIMATION:
 			{
 				MAD = MAD_estimator(&err, &m);
+				break;
+			}
+			case tolerance_is_biweight_midvariance:
+			{
+				midweighbivariance = onestepbiweightmidvariance(&err, &m);
 				break;
 			}
 			case tolerance_is_decision_in_S_ESTIMATION:
@@ -714,6 +742,15 @@ inline bool Ransac_regression(vector<long>* x, vector<double>* y, vector<double>
 				case tolerance_is_decision_in_MAD_ESTIMATION:
 				{
 					double G = fabs((mp[j].error - m) / MAD);
+					if (G > tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_biweight_midvariance:
+				{
+					double G = fabs((mp[j].error - m) / midweighbivariance);
 					if (G > tolerance)
 					{
 						isoutlier = true;
@@ -1027,3 +1064,6 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
+
+
+
