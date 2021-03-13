@@ -9,8 +9,7 @@
 
 // <Stephen King> 
 // Responsible for:
-// The Algorithm idea for the hyperbolic fit in the internal function "Regression" with the linear regression and least squares comparison, first suggested in 
-// https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+// The Algorithm idea for the hyperbolic fit in the internal function "Regression" with the linear regression and least squares comparison, first suggested in  https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
 
 // <Jim Hunt>
 // Responsible for:
@@ -28,11 +27,16 @@
 // The library also makes use of Peirce's outlier test. An algorithm for this method was developed in
 // Gould, B. A, Astronomical Journal, vol. 4, iss. 83, p. 81 - 87 (1855).
 
-// The library also has the possibility to use MAD, S and Q estimators. 
+// The library also has the possibility to use MAD, S, Q and T estimators. 
 // These estimators are extensively described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
 // J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
 // Christophe Croux and Peter J.Rousseeuw, Time-effcient algorithms for two highly robust estimators of scale, 
 // In: Dodge Y., Whittaker J. (eds) Computational Statistics. Physica, Heidelberg, https ://doi.org/10.1007/978-3-662-26811-7_58
+// According to Rousseeuw and Croux, the S estimator has an advantange over the MAD estimator because it can also work for asymmetric distributions.
+// The same authors note that the Q estimator is better optimized than the S estimator for small sample sizes.
+// 
+// The library also can make use of the biweight midvariance estimator that was described in 
+// T. C. Beers,K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
 
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
