@@ -21,7 +21,7 @@
 // The library also makes use of Peirce's outlier test. An algorithm for this method was developed in
 // Gould, B. A, Astronomical Journal, vol. 4, iss. 83, p. 81 - 87 (1855).
 
-// The library also has the possibility to use MAD, S and Q estimators. 
+// The library also has the possibility to use MAD, S and Q and T estimators. 
 
 // These estimators are extensively described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
 // J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
@@ -29,9 +29,13 @@
 // Christophe Croux and Peter J.Rousseeuw, Time-effcient algorithms for two highly robust estimators of scale, 
 // In: Dodge Y., Whittaker J. (eds) Computational Statistics. Physica, Heidelberg, https ://doi.org/10.1007/978-3-662-26811-7_58
 
+// The library also can make use of the biweight midvariance estimator that was described in 
+// T. C. Beers,K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
+
 // The library has the option that one can use Siegel's repeated median from
 // Siegel, Andrew (September 1980). "Technical Report No. 172, Series 2 By Department of Statistics Princeton University: Robust Regression Using Repeated Medians" within the
 // RANSAC. 
+
 // In practice, repeated median regression is a rather slow fitting method. If median regression is not used, the RANSAC will use a faster linear regression algorithm for the 
 // hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
 
@@ -156,28 +160,45 @@
 // If 
 
 // rejection_method==tolerance_is_decision_in_MAD_ESTIMATION, or 
+// tolerance_is_biweight_midvariance, or
 // rejection_method==tolerance_is_decision_in_S_ESTIMATION, or  
 // rejection_method==tolerance_is_decision_in_Q_ESTIMATION, or
-// rejection_method==tolerance_is_decision_in_T_ESTIMATION,
+// rejection_method==tolerance_is_decision_in_T_ESTIMATION, 
 
-// then, MAD, S, Q or T estimators are used. 
+
+// then, MAD, biweight_midvariance, S, Q or T estimators are used. 
 
 // A point is then added to a minimal combination if
 
 // abs(err_p-median(err_p))/ estimator <= tolerance
 
-// where median(err_p) is the median of the errors, and estimator is then the MAD, Q, S or T estimator. Q and S estimators are better suited for asymmetric distributions.
+// where median(err_p) is the median of the errors, and estimator is then the MAD, Q, S or T estimator. 
+// 
+// The MAD,S,Q and T estimators are extensively described in
+// Peter J.Rousseeuw, Christophe Croux, Alternatives to the Median - Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
+// Q and S estimators are better suited for asymmetric distributions than the MAD estimator and the Q estimator is better optimized for small sample sizes than the S estimator.
 
-// if MAD, Q, or S estimators are used. the tolerance parameter should be around 2...3.
+// The library also can make use of the biweight midvariance estimator that was described in 
+// T. C. Beers, K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
+
+// if MAD, S, Q, T estimators or biweight midvariance estimators are used. the tolerance parameter should be around 2...3.
 
 
 // if 
 // rejection_method==tolerance_is_significance_in_Grubbs_test,
 //
-// then a point p is added to a minimal combination if its error err_p is not an outlier according to the Grubbs test.
+// then a point p is added to a minimal combination if its error err_p is not an outlier according to a modified Grubb's test.
 // The tolerance parameter is here a significance value based on student's distribution.
 // This means, in order to remove an outlier with 90% significance with Grubb's method, one should set tolerance=0.1, for 80% significance, one should select 0.2.
 
+// In the original version of Grubb's test, one searches the value err_p where |err_p-a|, with a as average is at its maximum.
+// One then makes Grubb's test with this value (which depends on the number of samples), and if it is an outlier, one removes this value and repeats the procedure.
+// 
+// This library modifies Grubb's test a bit, in that it does not include points which fail Grubb's test. It does not search for the largest outlier, removes it 
+// and then recalculates the test statistic with an updated sample size. 
+// This is done for computational speed, and it should correspond to the behavior of Grubb's test with a very large sample size
+// 
 // if 
 // rejection_method==use_peirce_criterion, 
 
