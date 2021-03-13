@@ -42,8 +42,8 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	vector<size_t>usedindices1, usedindices2, removedindices1, removedindices2, removedindices3, removedindices3a, removedindices4, removedindices5, removedindices6, removedindices7;
 
 
-	double mainerror,mainerror2,mainerror3,mainerror4,mainerror5, mainerror5a, mainerror6,mainerror7,mainerror8;
-	long focpos, focpos2,focpos3,focpos4,focpos5, focpos5a, focpos6,focpos7,focpos8;
+	double mainerror,mainerror2,mainerror3,mainerror4,mainerror5, mainerror5a, mainerror6,mainerror7,mainerror8,mainerror9;
+	long focpos, focpos2,focpos3,focpos4,focpos5, focpos5a, focpos6,focpos7,focpos8,focpos9;
 
 
 	if (focusposition_Regression(xv, yv, &focpos,&mainerror,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,120,2000,0,scale,false,0, no_rejection,0) == false)
@@ -64,7 +64,7 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << "with robust median regression"<< endl;
 	std::cout << focpos2 << endl;
 	
-	if (focusposition_Regression(xv, yv, &focpos3, &mainerror3, &mainslope2, &mainintercept2,&usedindices1, &returnline_x1, &returnline_y1, &removedindices1, &removedpoints_x1, &removedpoints_y1,120,10000,0,scale,false,outliers,tolerance_is_decision_in_MAD_ESTIMATION,tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos3, &mainerror3, &mainslope2, &mainintercept2,&usedindices1, &returnline_x1, &returnline_y1, &removedindices1, &removedpoints_x1, &removedpoints_y1,60, 2000000,0,scale,false,outliers,tolerance_is_decision_in_MAD_ESTIMATION,tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -72,7 +72,16 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << "with ransac and MAD estimator"<<endl;
 	std::cout << focpos3 << endl;
 
-	if (focusposition_Regression(xv, yv, &focpos4, &mainerror4, NULL, NULL, NULL, NULL, NULL, &removedindices2, NULL, NULL, 120, 2000, 0, scale, false, outliers, tolerance_is_decision_in_Q_ESTIMATION, tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos9, &mainerror9, NULL, NULL, NULL, NULL, NULL, &removedindices7, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_biweight_midvariance, tolerance) == false)
+	{
+		std::cout << "focusposition2 returned  false						" << endl;
+		return;
+	}
+	std::cout << "with biweight Midvariance" << endl;
+	std::cout << focpos9 << endl;
+
+
+	if (focusposition_Regression(xv, yv, &focpos4, &mainerror4, NULL, NULL, NULL, NULL, NULL, &removedindices2, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_Q_ESTIMATION, tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -80,7 +89,7 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << "with ransac and Q estimator" << endl;
 	std::cout << focpos4 << endl;
 
-	if (focusposition_Regression(xv, yv, &focpos5, &mainerror5, NULL, NULL, NULL, NULL, NULL, &removedindices3, NULL, NULL, 120, 2000, 0, scale, false, outliers, tolerance_is_decision_in_S_ESTIMATION, tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos5, &mainerror5, NULL, NULL, NULL, NULL, NULL, &removedindices3, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_S_ESTIMATION, tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -89,7 +98,7 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << focpos5 << endl;
 
 
-	if (focusposition_Regression(xv, yv, &focpos5a, &mainerror5a, NULL, NULL, NULL, NULL, NULL, &removedindices3a, NULL, NULL, 120, 2000, 0, scale, false, outliers, tolerance_is_decision_in_T_ESTIMATION, tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos5a, &mainerror5a, NULL, NULL, NULL, NULL, NULL, &removedindices3a, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_T_ESTIMATION, tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -98,7 +107,7 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << focpos5a << endl;
 
 
-	if (focusposition_Regression(xv, yv, &focpos6, &mainerror6, NULL,NULL, NULL, NULL, NULL, &removedindices4, NULL, NULL , 120, 2000, 0,scale,false,outliers,tolerance_multiplies_standard_deviation_of_error,tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos6, &mainerror6, NULL,NULL, NULL, NULL, NULL, &removedindices4, NULL, NULL , 60, 2000000, 0,scale,false,outliers,tolerance_multiplies_standard_deviation_of_error,tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -107,7 +116,7 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << focpos6 << endl;
 
 
-	if (focusposition_Regression(xv, yv, &focpos7, &mainerror7, NULL, NULL, NULL, NULL, NULL, &removedindices5,NULL,NULL, 120, 2000, 0, scale, false, outliers, use_peirce_criterion, tolerance) == false)
+	if (focusposition_Regression(xv, yv, &focpos7, &mainerror7, NULL, NULL, NULL, NULL, NULL, &removedindices5,NULL,NULL, 60, 2000000, 0, scale, false, outliers, use_peirce_criterion, tolerance) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
@@ -116,15 +125,17 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	
 	std::cout << focpos7 << endl;
 
-	if (focusposition_Regression(xv, yv, &focpos8, &mainerror8, NULL, NULL, NULL, NULL, NULL, &removedindices6, NULL, NULL, 120, 2000, 0, scale, false, outliers, tolerance_is_significance_in_Grubbs_test, 0.2) == false)
+	if (focusposition_Regression(xv, yv, &focpos8, &mainerror8, NULL, NULL, NULL, NULL, NULL, &removedindices6, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_significance_in_Grubbs_test, 0.2) == false)
 	{
 		std::cout << "focusposition2 returned  false						" << endl;
 		return;
 	}
 	std::cout << "with Grubb's test at 0.1 significance" << endl;
-	std::cout << focpos8 << endl << endl << endl << endl;
+	std::cout << focpos8 << endl<<endl<<endl<<endl<<endl;
 		
-;
+
+
+
 
 	std::cout << "estimated errors" << endl;
 
@@ -136,6 +147,9 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 
 	std::cout << "with ransac and MAD estimator" << endl;
 	std::cout << mainerror3 <<"  Number of outliers: " << removedindices1.size()<< endl;
+
+	std::cout << "from ransac biweight Midvariance" << endl;
+	std::cout << mainerror9 << "  Number of outliers: " << removedindices7.size() << endl;
 
 	std::cout << "with ransac and Q estimator" << endl;
 	std::cout << mainerror4 << "  Number of outliers: " << removedindices2.size() << endl;
@@ -154,6 +168,11 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 
 	std::cout << "from ransac and Grubb's test at 0.1 significance" << endl;
 	std::cout << mainerror8 << "  Number of outliers: " << removedindices6.size() << endl;
+
+
+
+
+
 
 	cout << endl << endl << endl;
 	cout << "example data for MAD estimator" << endl;
@@ -426,7 +445,9 @@ int main()
 		attempt(xv, yv,scale, 6, outliers, tolerance);
 		cout << endl;
 
-		cout << "example 8, more outliers added to data of example 6 added by hand. It  can be removed by the RANSAC algorithm and a tolerance value=1." << endl;
+		cout << "example 8, more outliers added to data of example 6 added by hand. " << endl;
+		cout << "It can be removed by the RANSAC algorithmand a tolerance value = 1 if the standard deviationand average method is used." << endl;
+		cout<< "The robust estimators S,Q, MAD and biweight Midvariance should require no adaption of the tolerance parameter." << endl;
 
 		long x5b[] = {95, 110 ,125, 140, 155, 170, 185, 200, 215 };
 		double y5b[] = {19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
@@ -438,8 +459,9 @@ int main()
 		copytovector(x5b, y5b, 9, &xv, &yv);
 		attempt(xv, yv, scale, 9, outliers, tolerance);
 
-		cout << "example 9, even more outliers added to data of example 6 added by hand. " << endl;
-		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units   " << endl;
+		cout << "example 9, even more outliers added to data of example 6 added by hand and removing up to 5 outliers " << endl;
+		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units if the standard deviation and average method is used." << endl;
+		cout<< "The other estimators should be more robust. The robust estimators S,Q, MAD and biweight Midvariance should require no adaption of the tolerance parameter." << endl;
 		long x5c[] = { 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
 		double y5c[] = { 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
 
@@ -449,8 +471,8 @@ int main()
 		copytovector(x5c, y5c, 10, &xv, &yv);
 		attempt(xv, yv, scale, 10, 5, tolerance);
 
-		cout << "example 10, even more outliers added to data of example 6 added by hand. " << endl;
-		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units   " << endl;
+		cout << "example 10, even more outliers added to data of example 6 added by hand and removing up to 5 outliers."<<endl;
+		cout << "Then one can see at which point the estimators break down." << endl;
 		long x5d[] = { 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
 		double y5d[] = { 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
 
@@ -460,8 +482,8 @@ int main()
 		copytovector(x5d, y5d, 11, &xv, &yv);
 		attempt(xv, yv, scale, 11, 5, tolerance);
 
-		cout << "example 11, even more outliers added to data of example 6 added by hand. " << endl;
-		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units   " << endl;
+		cout << "example 11, even more outliers added to data of example 6 added by hand and removing up to 6 outliers." << endl;
+		cout<< "Then one can see at which point the estimators break down" << endl;
 		long x5e[] = {50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
 		double y5e[] = {19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
 
@@ -472,8 +494,8 @@ int main()
 		attempt(xv, yv, scale, 12, 6, tolerance);
 
 
-		cout << "example 12, even more outliers added to data of example 6 added by hand. " << endl;
-		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units   " << endl;
+		cout << "example 12, even more outliers added to data of example 6 added by hand and removing up to 7 outliers." << endl;
+		cout <<"Then one can see at which point the robust estimators break down" << endl;
 		long x5f[] = {35, 50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
 		double y5f[] = {19.3, 19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
 
@@ -482,6 +504,17 @@ int main()
 
 		copytovector(x5f, y5f, 13, &xv, &yv);
 		attempt(xv, yv, scale, 13, 7, tolerance);
+
+		cout << "example 13, even more outliers added to data of example 6 added by hand and removing up to 11 outliers. " << endl;
+		cout <<"Then one can see at which point even the robust estimators break down " << endl;
+		long x5f1[] = { 35, 50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215,230,245,260,275,290,305,320,335,350,365,380 };
+		double y5f1[] = { 19.3, 19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51,5.12,7.81,9.82,9.87,9.83,9.89,9.6,9.8,9.2,9.5,9.6 };
+
+		cout << "Motorpositions: 35, 50, 65, 65 ,80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
+		cout << "HFD data: 19.3, 19.8, 19.4, 19.4, 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
+
+		copytovector(x5f1, y5f1, 24, &xv, &yv);
+		attempt(xv, yv, scale, 24, 11, tolerance);
 
 		cout << endl;
 		
@@ -635,5 +668,4 @@ int main()
 
 
 	
-
 
