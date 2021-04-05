@@ -426,7 +426,7 @@ inline size_t binominal(size_t n, size_t k)
 		for (size_t i = 2; i <= k; i++)
 		{
 			prod1 *= i;
-			prod2 *= (n + 1 - i);
+			prod2 *= ((double) n + 1.0 -(double) i);
 		}
 		return(size_t)(prod2 / prod1);
 	}
