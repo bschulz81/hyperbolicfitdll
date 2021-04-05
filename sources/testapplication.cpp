@@ -1,4 +1,43 @@
-// Copyright(c) < 2021 > <Benjamin Schulz.
+// Copyright(c) < 2021 > 
+
+// <Benjamin Schulz> 
+// Responsible for:
+// The implementation of the library in C++, see https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587),
+// The development of a RANSAC inspired algorithm to remove outliers in the function "focusposition_Regression", 
+// The implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
+// The implementation of various known outlier detection detection methods within the RANSAC (MAD, S, Q, and T estimators), Grubb's test for outliers, Peirce's criterion.
+
+// <Stephen King> 
+// Responsible for:
+// The Algorithm idea for the hyperbolic fit in the internal function "Regression" with the linear regression and least squares comparison, first suggested in  https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+
+// <Jim Hunt>
+// Responsible for:
+// Some testing of the library,
+// the algorithm idea for "findbackslash_Regression", first suggested in https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265).
+
+// The user <cytan> in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 
+// Responsible for:
+// The suggestion to throw out outlier data in "focusposition_Regression" by comparison of the error with the Standard-deviation.
+// Note that this idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.
+
+// The library makes use of an algorithm for student's distribution, which can be found at
+// Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
+
+// The library also makes use of Peirce's outlier test. An algorithm for this method was developed in
+// Gould, B. A, Astronomical Journal, vol. 4, iss. 83, p. 81 - 87 (1855).
+
+// The library also has the possibility to use MAD, S, Q and T estimators. 
+// These estimators are extensively described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
+// Christophe Croux and Peter J.Rousseeuw, Time-effcient algorithms for two highly robust estimators of scale, 
+// In: Dodge Y., Whittaker J. (eds) Computational Statistics. Physica, Heidelberg, https ://doi.org/10.1007/978-3-662-26811-7_58
+// According to Rousseeuw and Croux, the S estimator has an advantange over the MAD estimator because it can also work for asymmetric distributions.
+// The same authors note that the Q estimator is better optimized than the S estimator for small sample sizes.
+// 
+// The library also can make use of the biweight midvariance estimator that was described in 
+// T. C. Beers,K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
+
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
@@ -19,653 +58,1013 @@
 // SOFTWARE.
 
 
-// This small program is used to test a hyperbolic fit library that can be used for autofocus purposes in telescopes
-
-using namespace std;
-#include <iostream>
 #include <vector>
-#include "hyperbolicfitdll.h"
-#include <stdlib.h>     
-#include <sstream>
-#include <string>
 #include <chrono>
+#include <algorithm>
+#include "hyperbolicfitdll.h"
+#include <random>  
+#include <valarray>
+struct maybe_inliner
+{
+	size_t point;
+	double error;
+};
 
 
+inline void stdeviation(valarray<double>* errs, double* stdev, double* average, size_t s);
+inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression, valarray<bool>* usepoint, size_t usedpoints);
+inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale,
+	valarray<bool>usedpoint,size_t usedpoints, double tolerance, long* this_focpos, double* thiserr,	double* thisslope, double* thisintercept, vector<size_t>* usedindices, 
+	vector<size_t>* removedindices, double additionaldata, bool use_median_regression, outlier_criterion rejection_method);
+inline bool Search_min_error(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression, vector<double>* errs, valarray<bool>* indicestouse,size_t usedpoints);
+inline double median(valarray<double>* arr, size_t n, size_t nhalf);
+inline double lowmedian(valarray<double>*arr, size_t n);
+inline double factorial(size_t n);
+inline double peirce(size_t pointnumber, size_t numberofoutliers, size_t fittingparameters);
+inline size_t binominal(size_t n, size_t k);
+inline double crit(double alpha, size_t N);
+inline double t(double alpha, size_t nu);
+inline double cot(double x);
+inline double G(double y, size_t nu);
+inline double H(double y, size_t nu);
+inline double Q_estimator(valarray<double>* err, size_t s);
+inline double S_estimator(valarray<double>* err, size_t s);
+inline double MAD_estimator(valarray<double>* err, double* m, size_t s, size_t shalf);
+inline double onestepbiweightmidvariance(valarray<double>* err, double* median, size_t s,size_t shalf);
+inline double T_estimator(valarray<double>* err, size_t s);
 
 
-
-void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpoints, size_t outliers, double tolerance) {
-
-
-	double mainslope2,mainintercept2;
-	vector<double> returnline_x1, returnline_y1, removedpoints_x1, removedpoints_y1, returnline_x2, removedpoints_x2, returnline_y2, removedpoints_y2;
-	vector<size_t>usedindices1, usedindices2, removedindices1, removedindices2, removedindices3, removedindices3a, removedindices4, removedindices5, removedindices6, removedindices7;
-
-
-	double mainerror,mainerror2,mainerror3,mainerror4,mainerror5, mainerror5a, mainerror6,mainerror7,mainerror8,mainerror9;
-	long focpos, focpos2,focpos3,focpos4,focpos5, focpos5a, focpos6,focpos7,focpos8,focpos9;
-
-
-	if (focusposition_Regression(xv, yv, &focpos,&mainerror,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,120,2000,0,scale,false,0, no_rejection,0) == false)
+inline void stdeviation(valarray<double>* errs, double* stdev, double* average, size_t s)
+{
+	double sum = 0, devi = 0, t = 0;
+	for (size_t i = 0; i <s; i++)
 	{
-		std::cout << "focusposition returned false        " << endl;
-		return;
+		sum += (*errs)[i];
 	}
-	std::cout << "estimated best focuspositions" << endl;
-	std::cout << "with simple linear regression " << endl;
-	std::cout << focpos << endl;
+	*average = sum /(double) s;
 
-
-	if (focusposition_Regression(xv, yv, &focpos2,&mainerror2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 120, 2000,0,scale,true,0, no_rejection,0) == false)
+	if (stdev != NULL)
 	{
-	std::cout << "focusposition2 returned  false						" << endl;
-	return;
+		for (size_t i = 0; i <s; i++)
+		{
+			t = ((*errs)[i] - *average);
+			t *= t;
+			devi += t;
+		}
+		*stdev = sqrt(devi / s);
 	}
-	std::cout << "with robust median regression"<< endl;
-	std::cout << focpos2 << endl;
-	
-	if (focusposition_Regression(xv, yv, &focpos3, &mainerror3, &mainslope2, &mainintercept2,&usedindices1, &returnline_x1, &returnline_y1, &removedindices1, &removedpoints_x1, &removedpoints_y1,60, 2000000,0,scale,false,outliers,tolerance_is_decision_in_MAD_ESTIMATION,tolerance) == false)
+}
+
+inline double median(valarray<double>* arr,size_t n, size_t nhalf)
+{
+	nth_element(std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr)+n);
+	double  med = (*arr)[nhalf];
+	if (n % 2 == 0)
 	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
+		auto max_it = max_element(std::begin(*arr), std::begin(*arr) + nhalf);
+		med = (*max_it + med) / 2.0;
 	}
-	std::cout << "with ransac and MAD estimator"<<endl;
-	std::cout << focpos3 << endl;
+	return med;
+}
 
-	if (focusposition_Regression(xv, yv, &focpos9, &mainerror9, NULL, NULL, NULL, NULL, NULL, &removedindices7, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_biweight_midvariance, tolerance) == false)
+
+inline double lowmedian(valarray<double>* arr,size_t n)
+{
+	size_t m = (size_t)(floor(((double)n + 1.0) / 2.0) - 1.0);
+	nth_element(std::begin(*arr), std::begin(*arr) + m, std::begin(*arr)+n);
+	return (double)(*arr)[m];
+}
+
+
+inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression,valarray<bool>*usepoint,size_t usedpoints)
+{
+	*ferr = DBL_MAX;
+
+	valarray<long> x2=(*x)[*usepoint];
+	valarray<double> y2 =(*y)[*usepoint];
+	valarray<double> line_y2 = (*line_y)[*usepoint];
+
+	valarray<double>line_x2(usedpoints);
+
+	double thiserr, thisslope, thisintercept,t;
+	if (use_median_regression)
 	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with biweight Midvariance" << endl;
-	std::cout << focpos9 << endl;
-
-
-	if (focusposition_Regression(xv, yv, &focpos4, &mainerror4, NULL, NULL, NULL, NULL, NULL, &removedindices2, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_Q_ESTIMATION, tolerance) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with ransac and Q estimator" << endl;
-	std::cout << focpos4 << endl;
-
-	if (focusposition_Regression(xv, yv, &focpos5, &mainerror5, NULL, NULL, NULL, NULL, NULL, &removedindices3, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_S_ESTIMATION, tolerance) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with ransac and S estimator" << endl;
-	std::cout << focpos5 << endl;
-
-
-	if (focusposition_Regression(xv, yv, &focpos5a, &mainerror5a, NULL, NULL, NULL, NULL, NULL, &removedindices3a, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_decision_in_T_ESTIMATION, tolerance) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with ransac and T estimator" << endl;
-	std::cout << focpos5a << endl;
-
-
-	if (focusposition_Regression(xv, yv, &focpos6, &mainerror6, NULL,NULL, NULL, NULL, NULL, &removedindices4, NULL, NULL , 60, 2000000, 0,scale,false,outliers,tolerance_multiplies_standard_deviation_of_error,tolerance) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with ransac and average and standard deviation"<< endl;
-	std::cout << focpos6 << endl;
-
-
-	if (focusposition_Regression(xv, yv, &focpos7, &mainerror7, NULL, NULL, NULL, NULL, NULL, &removedindices5,NULL,NULL, 60, 2000000, 0, scale, false, outliers, use_peirce_criterion, tolerance) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with Peirce criterion" << endl;
-	
-	std::cout << focpos7 << endl;
-
-	if (focusposition_Regression(xv, yv, &focpos8, &mainerror8, NULL, NULL, NULL, NULL, NULL, &removedindices6, NULL, NULL, 60, 2000000, 0, scale, false, outliers, tolerance_is_significance_in_Grubbs_test, 0.2) == false)
-	{
-		std::cout << "focusposition2 returned  false						" << endl;
-		return;
-	}
-	std::cout << "with Grubb's test at 0.1 significance" << endl;
-	std::cout << focpos8 << endl<<endl<<endl<<endl<<endl;
+		valarray<double> stacks2(usedpoints);
+		size_t size2 = usedpoints - 1;
+		valarray<double> stacks1(size2);
 		
+		size_t halfsize = usedpoints / 2;
 
+		valarray<double> stacki1(usedpoints);
 
+		for (long h = minfocus; h <= maxfocus; h++)
+		{
+			for (size_t n = 0; n <  usedpoints; n++)
+			{
+				double k = (double)(x2)[n] - (double)h;
+				line_x2[n] = k * k;
+			}
+			
+			for (size_t i = 0; i < usedpoints; i++)
+			{
+				size_t q = 0;
+				for (size_t j = 0; j < usedpoints; j++)
+				{
+					if (i != j)
+					{
+						t = line_x2[j] - line_x2[i];
+						if (t != 0)
+						{
+							stacks1[q] = (line_y2[j] - line_y2[i]) / t;
+							q++;
+						}
+					}
+				}
+				stacks2[i] = median(&stacks1, q, q/2);
+			}
+			thisslope = median(&stacks2, usedpoints, halfsize);
 
+			for (size_t i = 0; i < usedpoints; i++)
+			{
+				stacki1[i] = ((line_y2)[i] - thisslope * line_x2[i]);
+			}
+			thisintercept = median(&stacki1, usedpoints, halfsize);
 
-	std::cout << "estimated errors" << endl;
+			thiserr = 0;
+			for (size_t n = 0; n < usedpoints; n++)
+			{
+				double k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
+				k *= k;
+				thiserr += k;
+			}
 
-	std::cout << "from linear regression"<< endl;
-	std::cout << mainerror << endl;
-
-	std::cout << "from robust median regression"<< endl;
-	std::cout << mainerror2 << endl;
-
-	std::cout << "with ransac and MAD estimator" << endl;
-	std::cout << mainerror3 <<"  Number of outliers: " << removedindices1.size()<< endl;
-
-	std::cout << "from ransac biweight Midvariance" << endl;
-	std::cout << mainerror9 << "  Number of outliers: " << removedindices7.size() << endl;
-
-	std::cout << "with ransac and Q estimator" << endl;
-	std::cout << mainerror4 << "  Number of outliers: " << removedindices2.size() << endl;
-
-	std::cout << "with ransac and S estimator" << endl;
-	std::cout << mainerror5<< "  Number of outliers: " << removedindices3.size() << endl;
-
-	std::cout << "with ransac and T estimator" << endl;
-	std::cout << mainerror5a << "  Number of outliers: " << removedindices3a.size() << endl;
-
-	std::cout << "with ransac and average and standard deviation" << endl;
-	std::cout << mainerror6 << "  Number of outliers: " << removedindices4.size() << endl;
-
-	std::cout << "from ransac and Peirce criterion" << endl;
-	std::cout << mainerror7<<"  Number of outliers: " << removedindices5.size() << endl;
-
-	std::cout << "from ransac and Grubb's test at 0.1 significance" << endl;
-	std::cout << mainerror8 << "  Number of outliers: " << removedindices6.size() << endl;
-
-
-
-
-
-
-	cout << endl << endl << endl;
-	cout << "example data for MAD estimator" << endl;
-
-	std::cout << "Hyperbola parameters y=sqrt(slope (x-bestfocus)^2+intercept)" << endl;
-	std::cout << "b^2*d:   ";
-	std::cout << mainintercept2 << endl;
-
-	std::cout << "b^2/a^2:  ";
-	std::cout << mainslope2 << endl << endl;
-
-
-	std::cout << "Outliers in original form" << endl;
-
-	std::cout << "Motorpositions       " ;
-	for (size_t i = 0; i < removedindices1.size(); i++)
+			if (thiserr < *ferr)
+			{
+				*fintercept = thisintercept;
+				*fslope = thisslope;
+				*ferr = thiserr;
+				*focpos = h;
+			}
+		}
+	}
+	else
 	{
-		std::cout << xv[removedindices1[i]];
-		std::cout << ", ";
+		double xaverage, yaverage;
+		for (long h = minfocus; h <= maxfocus; h++)
+		{
+			for (size_t n = 0; n < usedpoints; n++)
+			{
+				double k = (double)(x2)[n] - (double)h;
+				line_x2[n] = k * k;
+			}
+
+			double sumx = 0, sumy = 0, sumxy = 0, sumxx = 0;
+			for (size_t i = 0; i < usedpoints; i++)
+			{
+				sumx += (double)line_x2[i];
+				sumy += (double)line_y2[i];
+				sumxy += ((double)line_x2[i]) * ((double)line_y2[i]);
+				sumxx += ((double)line_x2[i]) * ((double)line_x2[i]);
+			}
+
+			xaverage = sumx / (double)usedpoints;
+			yaverage = sumy / (double)usedpoints;
+
+			t = sumxx - sumx * xaverage;
+			if (t == 0)
+			{
+				return false;
+			}
+			thisslope = (sumxy - sumx * yaverage) / t;
+			thisintercept = yaverage - thisslope * xaverage;
+
+			thiserr = 0;
+			for (size_t n = 0; n < usedpoints; n++)
+			{
+				double k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
+				k *= k;
+				thiserr += k;
+			}
+
+			if (thiserr < *ferr)
+			{
+				*fintercept = thisintercept;
+				*fslope = thisslope;
+				*ferr = thiserr;
+				*focpos = h;
+			}
+		}
 	}
-	std::cout << endl;
 
-	std::cout << "HFD                  "  ;
-	for (size_t i = 0; i < removedindices1.size(); i++)
-	{
-		std::cout << yv[removedindices1[i]];
-		std::cout << ", ";
-	}
-	std::cout << endl;
-
-
-	std::cout << "Outliers in line coordinates"	<<endl;
-
-	std::cout << "Motorpositions       " ;
-	for (size_t i = 0; i < removedindices1.size(); i++)
-	{
-		std::cout << removedpoints_x1[i] << ",	";
-	}
-	std::cout << endl;
-
-	std::cout << "HFD	            ";
-	for (size_t i = 0; i < removedindices1.size(); i++)
-	{
-		std::cout << removedpoints_y1[i] << ",	";
-	}
-	std::cout << endl;
-
-	std::cout << "Used points in original form" << endl;
-
-	std::cout << "Motorpositions       ";
-	for (size_t i = 0; i < usedindices1.size(); i++)
-	{
-		std::cout << xv[usedindices1[i]]	<< ",	";
-	}
-	std::cout << endl;
-
-	std::cout << "HFD                  ";
-	for (size_t i = 0; i < usedindices1.size(); i++)
-	{
-		std::cout << yv[usedindices1[i]] << ",	";
-	}
-	std::cout << endl;
-
-
-	std::cout << "Used points in line coordinates" << endl;
-
-	std::cout << "Motorpositions       ";
-	for (size_t i = 0; i < usedindices1.size(); i++)
-	{
-		std::cout << returnline_x1[i] << ",	";
-	}
-	std::cout << endl;
-
-	std::cout << "HFD	            ";
-	for (size_t i = 0; i < usedindices1.size(); i++)
-	{
-		std::cout << returnline_y1[i] << ",	";
-	}
-	std::cout << endl<<endl<<endl;
-	
-}
-inline void copytovector(long x[], double y[], size_t datapointnumnber, vector<long>* xv, vector<double>* yv) {
-	(*xv).clear();
-	(*yv).clear();
-	(*xv).resize(datapointnumnber);
-	(*yv).resize(datapointnumnber);
-
-	for (size_t t = 0; t < datapointnumnber; t++) {
-		(*xv)[t]=(x[t]);
-		(*yv)[t]=(y[t]);
-	}
+	return true;
 }
 
 
-int main()
+inline bool Search_min_error(valarray<long>* x, valarray<double>* y,valarray<double>*line_y, long minfocus, long maxfocus,double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression,valarray<bool>*indicestouse,size_t usedpoints)
 {
 
-
-	std::vector <long > xv;
-	std::vector<double> yv;
-	string input;
-
-
-	cout << "Enter 1 in order to test the hyperbolic fit with your own data" << endl<< "Enter 2 or press return if you want to test the hyperbolic fit with builtin historical data (default)  ";
-	cout << endl;
-	std::getline(std::cin, input);
-	int decision = 2;
-
-	if (!input.empty()) {
-		istringstream stream(input);
-		stream >> decision;
+	if (!regression(err, x, y, line_y, minfocus, maxfocus, focpos, fintercept, fslope, use_median_regression, indicestouse, usedpoints))
+	{
+		return false;
 	}
 
-	if ((decision!=2) && (decision!=1)) {
-		cout << "bad data entered";
-		return -1;
+	if ((*focpos == maxfocus)&& (scale >1))
+	{
+		
+		const long middle=lround(((double)maxfocus +(double) minfocus) / 2.0);
+		minfocus = maxfocus;
+		maxfocus = (long)((double)middle + ((double)maxfocus -(double) middle) * fabs(scale));
+		long thisfocpos;
+		double thiserr, thisslope, thisintercept;
+		if(!regression(&thiserr,x, y, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse,usedpoints))
+		{
+			return false;
+		}
+	
+		if ((thiserr < *err))
+		{
+			*err = thiserr;
+			*fintercept = thisintercept;
+			*fslope = thisslope;
+			*focpos = thisfocpos;
+		}
+	}
+	else if ((*focpos == minfocus )&& (scale >1) )
+	{
+		const long middle = lround(((double)maxfocus + (double)minfocus) / 2.0);
+		maxfocus = minfocus;
+		minfocus = (long)((double)middle - ((double)middle-(double)minfocus) * fabs(scale));
+		long thisfocpos;
+		double thiserr, thisslope, thisintercept;
+		if (!regression(&thiserr, x, y, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse, usedpoints)) 
+		{
+			return false;
+		}
+		if ((thiserr < *err))
+		{
+			*err = thiserr;
+			*fintercept = thisintercept;
+			*fslope = thisslope;
+			*focpos = thisfocpos;
+		}
+	}
+	return true;
+}
+
+
+_inline double factorial(size_t n)
+{
+	double ret = 1.00;
+	for (size_t i = 2; i <= n; ++i)
+		ret *= (double)i;
+	return ret;
+}
+
+_inline double H(double y, size_t nu)
+{
+	double sum = 0;
+
+	for (size_t j = 1; j <=size_t((nu + 1) / 2 - 1); j++)
+	{
+		sum += factorial((size_t)j) * factorial(size_t(j - 1.0)) / (pow(4, -((double)j)) * factorial((size_t)2.0 * j)) * pow((1 + y * y / nu), -((double)j));
+	}
+	return y / (2 * sqrt((double)nu)) * sum;
+}
+_inline double G(double y, size_t nu)
+{
+	double sum = 0;
+	for (size_t j = 0; j <=  nu / 2 - 1; j++)
+	{
+		sum += factorial((size_t)2.0 * j) / (pow(2.0, 2.0 * j) * pow(factorial(j), 2)) * pow(1 + y * y / nu, -((double)j));
+	}
+	return sum;
+}
+inline double cot(double x)
+{
+	return  cos(x) / sin(x);
+}
+
+
+
+inline double t(double alpha, size_t nu)
+{
+	const double PI = 3.14159265358979323846;
+	if (nu % 2 != 0)
+	{
+		double zeta;
+		double zeta1 = cot(alpha * PI);
+		do
+		{
+			zeta = zeta1;
+			zeta1 = sqrt((double)nu) * cot(alpha * PI + H(zeta, nu));
+		} while (fabs(zeta1 - zeta) > 0.0001);
+		return zeta1;
+	}
+	else
+	{
+		double zeta;
+		double zeta1 = sqrt(2.0 * pow(1.0 - 2.0 * alpha, 2.0) / (1 - pow(1.0 - 2.0 * alpha, 2.0)));
+		do
+		{
+			zeta = zeta1;
+			zeta1 = pow(1.0 / nu * (pow(G(zeta, nu) / (1.0 - 2.0 * alpha), 2.0) - 1.0), -0.5);
+		} while (fabs(zeta1 - zeta) > 0.0001);
+		return zeta1;
+	}
+}
+
+inline double crit(double alpha, size_t N)
+{
+	double temp = pow(t(alpha / (2.0 * (double)N), N - 2), 2.0);
+	return ((double)N - 1.0) / sqrt((double)N) * sqrt(temp / ((double)N - 2.0 + temp));
+}
+
+inline double peirce(size_t pointnumber, size_t numberofoutliers, size_t fittingparameters)
+{
+	double n = (double)numberofoutliers, N = (double)pointnumber, p = (double)fittingparameters;
+	double xa = 0.0, R = 1.0, diff1 = N - n;
+	double xb;
+	if (N > 1)
+	{
+		double lnQ = n * log(n) / N - log(N) + diff1 * log(diff1) / N;
+		do
+		{
+			double lambda = exp((N * lnQ - n * log(R)) / (diff1));
+			xb = xa;
+			xa = 1.0 + (diff1 - p) / n * (1.0 -lambda * lambda);
+			if (xa < 0)
+			{
+				xa = 0.0;
+			}
+			else
+			{
+				R = exp((xa - 1) / 2.0) * erfc(sqrt(xa) / sqrt(2.0));
+			}
+		} while (fabs(xa - xb) > (1.0e-5));
+	}
+	return xa;
+}
+
+
+inline size_t binominal(size_t n, size_t k)
+{
+	if (k == 0)
+	{
+		return 1;
+	}
+	else if (n == k)
+	{
+		return 1;
+	}
+	else
+	{
+		if (n - k < k)
+		{
+			k = n - k;
+		}
+		double prod1 = 1.0, prod2 = (double) n;
+		for (size_t i = 2; i <= k; i++)
+		{
+			prod1 *= i;
+			prod2 *= (n + 1 - i);
+		}
+		return(size_t)(prod2 / prod1);
+	}
+}
+
+inline double Q_estimator(valarray<double>* err, size_t s)
+{
+	valarray<double> t1(binominal(s, 2));
+
+	size_t i = 0;
+	for (size_t w = 0; w < s - 1; w++)
+	{
+		for (size_t k = w + 1; k < s; k++)
+		{
+			t1[i]=(fabs((*err)[w] - (*err)[k]));
+			i++;
+		}
+	}
+	size_t h = s / 2 + 1;
+	size_t k = binominal(h, 2) - 1;
+
+	std::nth_element(std::begin(t1), std::begin(t1) + k,std::end(t1));
+
+	double cn[] = { 0,0,0.399, 0.994, 0.512 ,0.844 ,0.611, 0.857, 0.669 ,0.872 };
+	double cc = 1;
+	if (s <= 9)
+	{
+		cc = cn[s];
+	}
+	else
+	{
+		if (s % 2 != 0)
+		{
+			cc = s / (s + 1.4);
+		}
+		else 
+		{
+			cc =s / (s+ 3.8);
+		}
+	}
+	return cc * 2.2219 * t1[k];
+
+
+
+}
+
+inline double S_estimator(valarray<double>* err, size_t s)
+{
+	valarray<double>m1(s);
+
+	size_t sminus = s - 1;
+
+	valarray<double>t1(sminus);
+	
+	for (size_t i = 0; i < s; i++)
+	{
+		size_t q = 0;
+		for (size_t k = 0; k < s; k++)
+		{
+			if (i != k)
+			{
+				t1[q]=(fabs((*err)[i] - (*err)[k]));
+				q++;
+			}
+		}
+		m1[i]=(lowmedian(&t1,sminus));
+	}
+	double c = 1;
+	double cn[] = { 0,0, 0.743, 1.851, 0.954 ,1.351, 0.993, 1.198 ,1.005, 1.131 };
+	if (s <= 9)
+	{
+		c = cn[s];
+	}
+	else
+	{
+		if (s % 2 != 0)
+		{
+			c = s / (s - 0.9);
+		}
 	}
 
-	if (decision == 2) {
+	return (c * 1.1926 * lowmedian(&m1,s));
+}
 
-		double tolerance = 2;
-		cout << "Please enter a value for tolerance [default = 2]: ";
-		string input;
-		std::getline(std::cin, input);
+inline double MAD_estimator(valarray<double>* err,double *m, size_t s,size_t shalf)
+{
+	*m = median(err,s,shalf);
+	valarray<double>m1(s);
+	for (size_t i = 0; i < s; i++)
+	{
+		m1[i]=(fabs((*err)[i] - *m));
+	}
+	double cn[] = { 0, 0, 1.196 ,1.495 ,1.363, 1.206, 1.200, 1.140, 1.129,1.107 };
+	double c = 1.0;
+	if (s <= 9)
+	{
+		c = cn[s];
+	}
+	else
+	{
+	    c =s/ (s - 0.8);
+	}
 
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> tolerance;
+	return  c * 1.4826 * median(&m1,s,shalf);
+}
+
+inline double onestepbiweightmidvariance(valarray<double>* err,double *median, size_t s,size_t shalf)
+{
+	double mad=MAD_estimator(err, median,s,shalf);
+	double p1 = 0.0, p2 = 0.0;
+	for (size_t i = 0; i < s; i++)
+	{
+		double ui = ((*err)[i] - *median) / (9.0 * mad);
+		if (fabs(ui) < 1.0)
+		{
+			double ui2 = ui * ui;
+			double g1 = (*err)[i] - *median;
+			double g2 = (1.0 - ui2);
+			p1 += g1 * g1*pow(g2,4.0);
+			p2 += g2 * (1.0 - 5.0 * ui2);
+		}
+	}
+
+	return (sqrt(s) *  sqrt(p1) / fabs(p2));
+
+}
+
+
+
+
+
+inline double T_estimator(valarray<double>* err, size_t s)
+{
+	
+	valarray<double>med1(s);
+	valarray<double>arr(s-1);
+
+	for (size_t i = 0; i <s; i++)
+	{
+		size_t q = 0;
+	
+		for (size_t j = 0; j <s; j++)
+		{
+			if (i != j)
+			{
+				arr[q]=(fabs((*err)[i] - (*err)[j]));
+				q++;
+			}
+		}
+		med1[i]=(median(&arr,s-1,(s-1)/2));
+	}
+	size_t h = s / 2 + 1;
+	double w = 0;
+	sort(std::begin(med1), std::end(med1));
+	for (size_t i = 1; i <= h; i++)
+	{
+		w += med1[i - 1];
+	}
+	return  (1.38 /((double) h))*w;
+}
+inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale, valarray<bool>*usedpoint,size_t usedpoints, double tolerance, long* this_focpos, double* thiserr,
+	double* thisslope, double* thisintercept, vector<size_t>* usedindices, vector<size_t>* removedindices,double additionaldata, bool use_median_regression, outlier_criterion rejection_method)
+{
+
+	if (!Search_min_error(x, y, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
+	{
+		return false;
+	}
+	vector<maybe_inliner> mp;
+	mp.reserve(pointnumber);
+
+	valarray<double>err(pointnumber);
+	valarray<double>err_sqr(pointnumber);
+
+	size_t pointnumberhalf = pointnumber / 2;
+	if (removedindices != NULL)
+	{
+		(*removedindices).clear();
+		(*removedindices).reserve(pointnumber - 4);
+	}
+	if (usedindices != NULL)
+	{
+		(*usedindices).clear();
+		(*usedindices).reserve(pointnumber);
+	}
+
+
+	for (size_t p = 0; p < (*x).size(); p++)
+	{
+		double xh = ((double)(*x)[p] - (double)*this_focpos);
+		xh *= xh;
+		double z =fabs(*thisslope * xh + *thisintercept) - (*y)[p]*(*y)[p];
+
+		err[p]=z;
+		err_sqr[p]=z * z;
+		if ((*usedpoint)[p])
+		{
+			if (usedindices != NULL)
+			{
+				(*usedindices).push_back(p);
+			}
+		}
+		else
+		{
+			maybe_inliner o;
+			o.point = p;
+			o.error = z;
+			mp.push_back(o);
+		}
+	}
+
+	if (mp.size() > 0)
+	{
+		double m = 0, MAD = 0, average = 0, stdev = 0, S = 0, Q = 0,T=0,biweightmidvariance=0;
+
+		switch (rejection_method)
+		{
+			case tolerance_multiplies_standard_deviation_of_error:
+			{
+				stdeviation(&err, &stdev, &average, pointnumber);
+				break;
+			}
+			case tolerance_is_significance_in_Grubbs_test:
+			{
+				stdeviation(&err, &stdev, &average, pointnumber);
+				break;
+			}
+			case tolerance_is_decision_in_MAD_ESTIMATION:
+			{
+				MAD = MAD_estimator(&err, &m, pointnumber,pointnumberhalf);
+				break;
+			}
+			case tolerance_is_biweight_midvariance:
+			{
+				biweightmidvariance = onestepbiweightmidvariance(&err, &m, pointnumber,pointnumberhalf);
+				break;
+			}
+			case tolerance_is_decision_in_S_ESTIMATION:
+			{
+				S = S_estimator(&err, pointnumber);
+				m = median(&err, pointnumber, pointnumberhalf);
+				break;
+			}
+			case tolerance_is_decision_in_Q_ESTIMATION:
+			{
+				m = median(&err, pointnumber, pointnumberhalf);
+				Q = Q_estimator(&err, pointnumber);
+				break;
+			}
+			case tolerance_is_decision_in_T_ESTIMATION:
+			{
+				m = median(&err, pointnumber, pointnumberhalf);
+				T = T_estimator(&err, pointnumber );
+				break;
+			}
+			case use_peirce_criterion:
+			{
+				stdeviation(&err_sqr, NULL, &average, pointnumber);
+				break;
+			}
 		}
 
-		cout << endl;
-		cout << "Please enter a value for the maximum number of outliers that can be found (from 0 to 3 points)[default 3]";
-
-		size_t outliers = 3;
-		getline(std::cin, input);
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> outliers;
-		}
-
-		if ((outliers<0) || (outliers>3)) {
-			cout << "bad data entered";
-			return -1;
-		}
-		cout << endl;
-		cout << endl;
-		cout << endl;
-		cout << "Please enter a value for the scale parameter. It determines the interval size where the best focus is searched." << endl << endl
-			<< "scale=1 means the best focus is searched within the measured motorpositions" << endl << endl
-			<< "scale=2 doubles the size of this interval and so on. default is scale=1.5 "<< endl<< endl
-			<< "In order to see the effects of this parameter for the historical data, scale=1.5 suffices" << endl << endl
-			<< "for this data, scale should be <= 10." << endl << endl;
-
+		for (size_t j = 0; j < mp.size(); j++)
+		{
+			bool isoutlier=false;
 		
-		double scale=1.5;
-		getline(std::cin, input);
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> scale;
+			switch (rejection_method)
+			{
+				case tolerance_is_maximum_squared_error:
+				{
+					double G = mp[j].error * mp[j].error;
+					if (G > fabs(tolerance))
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_multiplies_standard_deviation_of_error:
+				{	
+					double G = fabs(mp[j].error - average);
+					if (G > tolerance * stdev)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_significance_in_Grubbs_test:
+				{
+					double G = fabs(mp[j].error-average);
+					if (G > additionaldata*stdev)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_decision_in_MAD_ESTIMATION:
+				{
+					double G = fabs((mp[j].error - m) / MAD);
+					if (G > tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_biweight_midvariance:
+				{
+					double G = fabs((mp[j].error - m) / biweightmidvariance);
+					if (G > tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_decision_in_S_ESTIMATION:
+				{
+					double G = (fabs(mp[j].error - m) / S);
+					if (G> tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+
+				case tolerance_is_decision_in_Q_ESTIMATION:
+				{
+					double G= fabs((mp[j].error - m) / Q);
+					if (G > tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case tolerance_is_decision_in_T_ESTIMATION:
+				{
+					double G = fabs((mp[j].error - m) / T);
+					if (G > tolerance)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+				case use_peirce_criterion:
+				{
+					double G = mp[j].error * mp[j].error;
+					if (G > average * additionaldata)
+					{
+						isoutlier = true;
+					}
+					break;
+				}
+			}
+
+			if(isoutlier)
+			{
+				(*usedpoint)[mp[j].point] = false;
+				if (removedindices != NULL)
+				{
+					(*removedindices).push_back(mp[j].point);
+				}
+			}
+			else
+			{
+				usedpoints++;
+				(*usedpoint)[mp[j].point] = true;
+				if (usedindices != NULL)
+				{
+					(*usedindices).push_back(mp[j].point);
+				}
+			}
 		}
+	}
+	if (removedindices != NULL)
+	{
+		(*removedindices).shrink_to_fit();
+	}
+	if (usedindices != NULL)
+	{
+		(*usedindices).shrink_to_fit();
+	}
 
-		if (scale < 1) {
-			cout << "bad data entered";
-			return -1;
+	if (!Search_min_error(x, y, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
+	{
+		return false;
+	}
+	return true;
+}
+bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
+	vector<size_t>* indices_of_used_points,
+	vector<double>* usedpoints_line_x, vector<double>* usedpoints_line_y, vector<size_t>* indices_of_removedpoints, vector<double>* removedpoints_line_x, vector<double>* removedpoints_line_y,
+	double stop_after_seconds , size_t stop_after_numberofiterations_without_improvement, long backslash, double scale, bool use_median_regression,
+	size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance)
+{
+	if(focpos==NULL )
+	{
+		return false;
+	}
+	if (x.size() < 4)
+	{
+		return false;
+	}
+
+	size_t pointnumber = x.size();
+
+	size_t minimummodelsize = pointnumber - maximum_number_of_outliers;
+
+	if (maximum_number_of_outliers == 0)
+	{
+		rejection_method = no_rejection;
+	}
+
+	if (rejection_method == no_rejection)
+	{
+		maximum_number_of_outliers = 0;
+		minimummodelsize = pointnumber;
+	}
+
+	if (minimummodelsize < 4)
+	{
+		minimummodelsize = 4;
+		maximum_number_of_outliers = pointnumber - minimummodelsize;
+	}
+
+
+	if (rejection_method == tolerance_is_significance_in_Grubbs_test)
+	{
+		if (tolerance >= 0.9)
+		{
+			rejection_method = no_rejection;
 		}
-		if (scale > 10) {
-			cout << "bad data entered";
-			return -1;
+	}
+
+	long minfocus = LONG_MAX, maxfocus = LONG_MIN;
+
+
+	valarray<bool> indices(pointnumber);
+	valarray<bool> indices2(pointnumber);
+
+	valarray<double>line_yv(pointnumber);
+
+	for (size_t i = 0; i < pointnumber; i++)
+	{
+
+		if (i < maximum_number_of_outliers)
+		{
+			indices[i]=(false);
 		}
+		else 
+		{
+			indices[i]=(true);
+		}
+		line_yv[i]=(y[i] * y[i]);
+		if (x[i] < minfocus)
+		{
+			minfocus = x[i];
+		}
+		if (x[i] > maxfocus)
+		{
+			maxfocus = x[i];
+		}
+	}
 
-		cout << endl;
-		cout << "The value you entered for tolerance is " << tolerance;
+	if (maxfocus - minfocus == 0)
+		return false;
 
-		cout << endl;
-		cout << "The value you entered for minimalmodelsize is " << outliers << endl << endl;
+	vector<size_t> removedindices, usedindices, thisremovedindices, thisusedindices;
 
-		cout << endl;
-		cout << "The value you entered for scale is " << scale << endl << endl;
+	double thiserr = DBL_MAX, thisslope=0, thisintercept=0, error=DBL_MAX,intercept=0,slope=0, additionaldata = 0;
+	long thisfocpos = 0;
 
-		double seconds = 0;
-		size_t counter1 = 0;
-		auto start = std::chrono::steady_clock::now();
+	if (rejection_method == use_peirce_criterion)
+	{
+		additionaldata = peirce(pointnumber, maximum_number_of_outliers, 3);
+	}
+	if (rejection_method==tolerance_is_significance_in_Grubbs_test)
+	{
+		additionaldata = crit(tolerance, pointnumber);
+	}
 
+	double k;
+	size_t counter1 = 0;
 
-		cout << "example 1 " << endl;
-		long x[] = { 285, 270, 255, 240, 225, 210, 195 };
-		double y[] = { 7.41, 5.65, 4.31, 3.65, 4.35, 6.00, 8.27 };
+	valarray <long> xv(x.data(), x.size());
+	valarray <double> yv(y.data(), y.size());
 
-		cout << "Motorpositions: 285, 270, 255, 240, 225, 210, 195" << endl;
-		cout << "HFD data: 7.41, 5.65, 4.31, 3.65, 4.35, 6.00, 8.27" << endl << endl;
+	size_t numbercomp = binominal(pointnumber, maximum_number_of_outliers);
 
-		copytovector(x, y, 7, &xv, &yv);
-		attempt(xv, yv,scale, 7, outliers, tolerance);
-
-		cout << endl;
-
-		cout << "example 2 " << endl;
-
-		long x1[] = { 320, 310, 300, 290, 280, 270, 260, 250, 240, 230, 220 };
-		double y1[] = { 7.55, 6.31, 5.42, 4.83, 4.53, 4.33, 5.22, 6.01, 7.09, 8.29, 9.86 };
-
-		cout << "Motorpositions: 320, 310, 300, 290, 280, 270, 260, 250, 240, 230, 220" << endl;
-		cout << "HFD data: 7.55, 6.31, 5.42, 4.83, 4.53, 4.33, 5.22, 6.01, 7.09, 8.29, 9.86" << endl << endl;
-		cout << "For this large dataset, we are using the RANSAC with randomly generated combinations." << endl;
-	    cout << "Since the dataset is larger, we allow the algorithm here to remove 5 outliers at maximum"<< endl << endl;
-
-		copytovector(x1, y1, 11, &xv, &yv);
-		attempt(xv, yv,scale, 11, 5, tolerance);
-		cout << endl;
-		
-		cout << "example 3 " << endl;
-
-		long x2[] = { 315, 300, 285, 270, 255, 240, 225 };
-		double y2[] = { 10.91, 9.33, 7.32, 5.52, 4.09, 3.48, 4.74 };
-
-		cout << "Motorpositions: 315, 300, 285, 270, 255, 240, 225" << endl;
-		cout << "HFD data: 10.91, 9.33, 7.32, 5.52, 4.09, 3.48, 4.74" << endl << endl;
-
-		copytovector(x2, y2, 7, &xv, &yv);
-		attempt(xv, yv,scale, 7, outliers, tolerance);
-		cout << endl;
-		
-		cout << "example 4 " << endl;
-		long x3[] = { 255, 240, 225, 210, 195, 180, 165 };
-		double y3[] = { 4.23, 3.56, 4.27, 5.99, 8.12, 10.69, 13.62 };
-
-		cout << "Motorpositions: 255, 240, 225, 210, 195, 180, 165 " << endl;
-		cout << "HFD data: 4.23, 3.56, 4.27, 5.99, 8.12, 10.69, 13.62 " << endl << endl;
-
-		copytovector(x3, y3, 7, &xv, &yv);
-		attempt(xv, yv,scale, 7, outliers, tolerance);
-		cout << endl;
-
-		
-		cout << "example 5 " << endl;
-		long x4[] = { 285, 270, 255, 240, 225, 210, 195 };
-		double y4[] = { 7.61, 5.68, 4.28, 3.34, 4.07, 5.7, 7.82 };
-
-		cout << "Motorpositions: 285, 270, 255, 240, 225, 210, 195 " << endl;
-		cout << "HFD data: 7.61, 5.68, 4.28, 3.34, 4.07, 5.7, 7.82 " << endl << endl;
-
-
-		copytovector(x4, y4, 7, &xv, &yv);
-		attempt(xv, yv,scale, 7, outliers, tolerance);
-		cout << endl;
-
-		cout << "example 6 " << endl;
-		long x5[] = { 125, 140, 155, 170, 185, 200, 215 };
-		double y5[] = { 20.02, 15.5, 13.5, 10.51, 8.47, 6.17,  4.51 };
-
-		cout << "Motorpositions: 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data:  20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		cout << "focuspoint in this example is outside of the measured data. Continuation of the measurement yielded 226. " << endl;
-		cout << "Use scale = 2 to see if the algorithms can find the correct point outside of the data" << endl;
-		cout << "Median Regression seems to yield the best estimate" << endl;
-		copytovector(x5, y5, 7, &xv, &yv);
-		attempt(xv, yv,scale, 7, outliers, tolerance);
-
-
-		cout << "example 7 outlier in  data of example 6 removed by hand." << endl;
-		long x5a[] = { 140, 155, 170, 185, 200, 215 };
-		double y5a[] = { 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: , 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data:  15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-
-		copytovector(x5a, y5a, 6, &xv, &yv);
-		attempt(xv, yv,scale, 6, outliers, tolerance);
-		cout << endl;
-
-		cout << "example 8, more outliers added to data of example 6 added by hand. " << endl;
-		cout << "It can be removed by the RANSAC algorithmand a tolerance value = 1 if the standard deviationand average method is used." << endl;
-		cout<< "The robust estimators S,Q, MAD and biweight Midvariance should require no adaption of the tolerance parameter." << endl;
-
-		long x5b[] = {95, 110 ,125, 140, 155, 170, 185, 200, 215 };
-		double y5b[] = {19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-
-		copytovector(x5b, y5b, 9, &xv, &yv);
-		attempt(xv, yv, scale, 9, outliers, tolerance);
-
-		cout << "example 9, even more outliers added to data of example 6 added by hand and removing up to 5 outliers " << endl;
-		cout << "They can be removed by a small or negative value for tolerance if it is set in sigma units if the standard deviation and average method is used." << endl;
-		cout<< "The other estimators should be more robust. The robust estimators S,Q, MAD and biweight Midvariance should require no adaption of the tolerance parameter." << endl;
-		long x5c[] = { 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
-		double y5c[] = { 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: 80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		copytovector(x5c, y5c, 10, &xv, &yv);
-		attempt(xv, yv, scale, 10, 5, tolerance);
-
-		cout << "example 10, even more outliers added to data of example 6 added by hand and removing up to 5 outliers."<<endl;
-		cout << "Then one can see at which point the estimators break down." << endl;
-		long x5d[] = { 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
-		double y5d[] = { 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: 65 ,80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.4, 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		copytovector(x5d, y5d, 11, &xv, &yv);
-		attempt(xv, yv, scale, 11, 5, tolerance);
-
-		cout << "example 11, even more outliers added to data of example 6 added by hand and removing up to 6 outliers." << endl;
-		cout<< "Then one can see at which point the estimators break down" << endl;
-		long x5e[] = {50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
-		double y5e[] = {19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: 65 ,80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.4, 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		copytovector(x5e, y5e, 12, &xv, &yv);
-		attempt(xv, yv, scale, 12, 6, tolerance);
-
-
-		cout << "example 12, even more outliers added to data of example 6 added by hand and removing up to 7 outliers." << endl;
-		cout <<"Then one can see at which point the robust estimators break down" << endl;
-		long x5f[] = {35, 50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215 };
-		double y5f[] = {19.3, 19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51 };
-
-		cout << "Motorpositions: 35, 50, 65, 65 ,80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.3, 19.8, 19.4, 19.4, 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		copytovector(x5f, y5f, 13, &xv, &yv);
-		attempt(xv, yv, scale, 13, 7, tolerance);
-
-		cout << "example 13, even more outliers added to data of example 6 added by hand and removing up to 11 outliers. " << endl;
-		cout <<"Then one can see at which point even the robust estimators break down " << endl;
-		long x5f1[] = { 35, 50, 65, 80,95, 110 ,125, 140, 155, 170, 185, 200, 215,230,245,260,275,290,305,320,335,350,365,380 };
-		double y5f1[] = { 19.3, 19.8, 19.4, 19.5,19.8,20.7 ,20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51,5.12,7.81,9.82,9.87,9.83,9.89,9.6,9.8,9.2,9.5,9.6 };
-
-		cout << "Motorpositions: 35, 50, 65, 65 ,80, 95, 110, 125, 140, 155, 170, 185, 200, 215 " << endl;
-		cout << "HFD data: 19.3, 19.8, 19.4, 19.4, 19.5,19.8,20.7, 20.02, 15.5, 13.5, 10.51, 8.47, 6.17, 4.51" << endl << endl;
-
-		copytovector(x5f1, y5f1, 24, &xv, &yv);
-		attempt(xv, yv, scale, 24, 11, tolerance);
-
-		cout << endl;
-		
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> elapsed_seconds = end - start;
-		seconds = elapsed_seconds.count();
-
-		cout << "time used" << endl;
-		cout << seconds<< endl;
+	if (numbercomp <=(size_t)184756)
+	{
+		do
+		{
+			indices2 = indices;
+			if (Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &indices2, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method))
+			{
+				k = thiserr / thisusedindices.size();
+				if (k < error)
+				{
+					error = k;
+					*focpos = thisfocpos;
+					slope = thisslope;
+					intercept = thisintercept;
+					usedindices = thisusedindices;
+					removedindices = thisremovedindices;
+				}
+			}
+		} while (std::next_permutation(std::begin(indices), std::end(indices)));
 
 	}
 	else
 	{
+		auto start = std::chrono::steady_clock::now();
+		std::random_device rng;
+		std::mt19937 urng(rng());
+		double seconds = 0;
 
-		size_t datapointnumber=0;
-		std::cout << "How many data points you want to enter ";
-		std::getline(cin, input);
-		stringstream(input) >> datapointnumber;
-
-		if (datapointnumber < 4) {
-			cout << "bad data entered";
-			return -1;
-		}
-
-		cout << endl;
-		cout << "Please enter a  value for tolerance between -4 and 4: [default = 1]: ";
-
-		double  tolerance = 1;
-		std::getline(std::cin, input);
-
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> tolerance;
-		}
-
-		if ((tolerance < -4) || (tolerance > 4)) {
-			cout << "bad data entered";
-			return -1;
-		}
-		cout << endl;
-		cout << "Please enter a value for the maximum number of outlier points 0 and " << datapointnumber-4<< "  [default 4]:  " ;
-
-		size_t outliers = 4;
-		getline(std::cin, input);
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> outliers;
-		}
-
-		if ((outliers<0) || (outliers> datapointnumber-4)) {
-			cout << "bad data entered";
-			return -1;
-		}
-		cout << endl;
-		cout << "Please enter a value for the scale parameter. It determines the interval size where the best focus is searched." << endl
-			<< "scale=1 means the best focus is searched within the measured motorpositions" << endl << endl
-			<< "scale=2 doubles the size of this interval and so on. [default is scale=1]." << endl << endl
-			<< "If min1 is the minimum motor position and max1 is the maximum motor position." << endl
-			<< "then let  middle = (min1 + max1) / 2" << endl
-			<< "and min2 = middle - (middle - min1) * | scale |" << endl
-			<< "and max2 = middle + (max1 - middle) * | scale | . " << endl << endl;
-		cout << "currently, min1, max1 and scale should be set such that max2-min2 <= 46340. So set scale appropriately" << endl;
-
-		double scale=1;
-		getline(std::cin, input);
-		if (!input.empty()) {
-			istringstream stream(input);
-			stream >> scale;
-		}
-
-		if (scale < 1) {
-			cout << "bad data entered";
-			return -1;
-		}
-
-		cout << endl;
-		cout << endl;
-		cout << "The value you entered for the datapointnumber is " << datapointnumber;
-		cout << endl;
-		cout << "The value you entered for minimalmodelsize is " << outliers << endl ;
-		cout << "The value you entered for scale is " << scale << endl;
-		cout << "The value you entered for tolerance is " << tolerance;
-
-		cout << endl;
-	
-
-	
-
-		xv.clear();
-
-		yv.clear();
-
-		long xa = 0;
-		double ya = 0;
-
-		xv.reserve(datapointnumber);
-		yv.reserve(datapointnumber);
-
-		for (size_t i = 0; i < datapointnumber; i++) {
-			std::cout << "Enter motorposition " << i + 1<<"		";
-			std::getline(cin, input);
-			stringstream(input) >> xa;
-			xv.push_back(xa);
-		}
-		for (size_t i = 0; i < datapointnumber; i++) {
-			std::cout << "Enter hfd data " << i + 1<<"		";
-			std::getline(cin, input);
-			stringstream(input) >> ya;
-			yv.push_back(ya);
-		}
-		std::cout << "the entered motorpositions are: " << endl;
-
-		for (size_t i = 0; i < datapointnumber; i++) {
-
-			std::cout << xv[i] << ",  ";
-		}
-		std::cout << endl;
-		std::cout << "the hfd-data are: " << endl;
-		long minfocus = xv[0], maxfocus = xv[0];
-		for (size_t i = 0; i < datapointnumber; i++)
-		{
-			if (xv[i] > maxfocus)
+		do
+		{	
+			shuffle(std::begin(indices),std::end(indices), urng);
+			indices2 = indices;
+			if (Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &indices2, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method))
 			{
-				maxfocus = xv[i];
+				k = thiserr / thisusedindices.size();
+				if (k < error)
+				{
+					error = k;
+					*focpos = thisfocpos;
+					slope = thisslope;
+					intercept = thisintercept;
+					usedindices = thisusedindices;
+					removedindices = thisremovedindices;
+					counter1 = 0;
+				}
 			}
-			if (xv[i] < minfocus)
+			if (counter1 == stop_after_numberofiterations_without_improvement)
 			{
-				minfocus = xv[i];
+				break;
 			}
-		}
-	
-
-
-		for (size_t i = 0; i < datapointnumber; i++) {
-
-			std::cout << yv[i] << ",  ";
-		}
-		std::cout << endl;
-
-		attempt(xv, yv,scale, datapointnumber, outliers, tolerance);
+			auto end = std::chrono::steady_clock::now();
+			std::chrono::duration<double> elapsed_seconds = end - start;
+			seconds = elapsed_seconds.count();		
+			counter1++;
+		} while (seconds < fabs(stop_after_seconds));
 	}
 
-	
+	if (error == DBL_MAX)
+	{
+		return false;
+	}
+
+	*focpos += backslash;
+
+	if (main_error != NULL)
+	{
+		*main_error =error;
+	}
+
+	if (main_slope != NULL)
+	{
+		*main_slope =slope;
+	}
+
+	if (main_intercept != NULL)
+	{
+		*main_intercept =intercept;
+	}
+
+	if (indices_of_removedpoints != NULL)
+	{
+		*indices_of_removedpoints = removedindices;
+	}
+
+	if (indices_of_used_points != NULL)
+	{
+		*indices_of_used_points = usedindices;
+	}
+
+	if((removedpoints_line_x != NULL) && (removedpoints_line_y != NULL))
+	{
+		size_t j = removedindices.size();
+		(*removedpoints_line_x).clear();
+		(*removedpoints_line_y).clear();
+		(*removedpoints_line_x).resize(j);
+		(*removedpoints_line_y).resize(j);
+		for (size_t c = 0; c < j; c++)
+		{
+			k =(double) x[removedindices[c]] -(double) *focpos;
+			k *= k;
+			(*removedpoints_line_x)[c]=(k);
+			double w = y[removedindices[c]];
+			(*removedpoints_line_y)[c]=(w * w);
+		}
+	}
+	if ((usedpoints_line_x != NULL) && (usedpoints_line_y != NULL))
+	{
+		size_t p = usedindices.size();
+		(*usedpoints_line_x).clear();
+		(*usedpoints_line_y).clear();
+		(*usedpoints_line_x).resize(p);
+		(*usedpoints_line_y).resize(p);
+		for (size_t c = 0; c < p; c++)
+		{
+			k = (double)x[usedindices[c]] -(double) *focpos;
+			k *= k;
+			(*usedpoints_line_x)[c]=(k);
+			double w = y[usedindices[c]];
+			(*usedpoints_line_y)[c]=(w*w);
+		}
+	}
 
 
-	cout << "press key to end ";
-	getline(std::cin, input);
-	return 1;
+	return true;
 }
 
 
+bool findbackslash_Regression(long* backslash,
+	vector<long> x1, vector<double> y1, vector<long> x2, vector<double> y2, double* main_error1 , double* main_slope1, double* main_intercept1, vector<size_t>*indicesofusedpoints1,
+	vector<double>*used_points1_line_x , vector<double>*used_points1_line_y , vector<size_t>*indicesofremovedpoints1, vector<double>*removedpoints1_line_x, vector<double>*removedpoints1_line_y ,
+	double* main_error2 , double* main_slope2 , double* main_intercept2 , vector<size_t>*indicesofusedpoints2 ,
+	vector<double>*used_points2_line_x , vector<double>*used_points2_line_y , vector<size_t>*indicesofremovedpoints2, vector<double>*removedpoints2_line_x, vector<double>*removedpoints2_line_y ,
+	double stop_after_seconds, size_t stop_after_numberofiterations_without_improvement, double scale, bool use_median_regression,
+	size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance)
+{
+	if (backslash == NULL)
+	{
+		return false;
+	}
 
-	
+	long focpos1 = 0, focpos2 = 0;
+	if (focusposition_Regression(x1, y1, &focpos1, main_error1, main_slope1, main_intercept1,indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y, stop_after_seconds,
+		stop_after_numberofiterations_without_improvement, 0, scale,use_median_regression,maximum_number_of_outliers,rejection_method,tolerance) == false)
+	{
+		return false;
+	}
+
+	if (focusposition_Regression(x2, y2, &focpos2, main_error2, main_slope2, main_intercept2,indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y, stop_after_seconds,
+		stop_after_numberofiterations_without_improvement,0, scale, use_median_regression, maximum_number_of_outliers, rejection_method, tolerance) == false)
+		*backslash = focpos2 - focpos1;
+	return true;
+}
+
+
 
