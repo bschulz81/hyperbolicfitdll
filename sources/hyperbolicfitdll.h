@@ -244,8 +244,8 @@ typedef enum
 	tolerance_is_decision_in_S_ESTIMATION,
 	tolerance_is_decision_in_Q_ESTIMATION,
 	tolerance_is_decision_in_T_ESTIMATION,
-	tolerance_is_biweight_midvariance,
-	use_peirce_criterion
+	use_peirce_criterion,
+	tolerance_is_biweight_midvariance
 }outlier_criterion;
 
 HYPERBOLICFIT_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
