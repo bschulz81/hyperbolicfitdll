@@ -574,3 +574,151 @@ int main()
 		cout << endl;
 
 	
+
+
+
+	}
+	else
+	{
+
+		size_t datapointnumber=0;
+		std::cout << "How many data points you want to enter ";
+		std::getline(cin, input);
+		stringstream(input) >> datapointnumber;
+
+		if (datapointnumber < 4) {
+			cout << "bad data entered";
+			return -1;
+		}
+
+		cout << endl;
+		cout << "Please enter a  value for tolerance between -4 and 4: [default = 1]: ";
+
+		double  tolerance = 1;
+		std::getline(std::cin, input);
+
+		if (!input.empty()) {
+			istringstream stream(input);
+			stream >> tolerance;
+		}
+
+		if ((tolerance < -4) || (tolerance > 4)) {
+			cout << "bad data entered";
+			return -1;
+		}
+		cout << endl;
+		cout << "Please enter a value for the maximum number of outlier points 0 and " << datapointnumber-4<< "  [default 4]:  " ;
+
+		size_t outliers = 4;
+		getline(std::cin, input);
+		if (!input.empty()) {
+			istringstream stream(input);
+			stream >> outliers;
+		}
+
+		if ((outliers<0) || (outliers> datapointnumber-4)) {
+			cout << "bad data entered";
+			return -1;
+		}
+		cout << endl;
+		cout << "Please enter a value for the scale parameter. It determines the interval size where the best focus is searched." << endl
+			<< "scale=1 means the best focus is searched within the measured motorpositions" << endl << endl
+			<< "scale=2 doubles the size of this interval and so on. [default is scale=1]." << endl << endl
+			<< "If min1 is the minimum motor position and max1 is the maximum motor position." << endl
+			<< "then let  middle = (min1 + max1) / 2" << endl
+			<< "and min2 = middle - (middle - min1) * | scale |" << endl
+			<< "and max2 = middle + (max1 - middle) * | scale | . " << endl << endl;
+		cout << "currently, min1, max1 and scale should be set such that max2-min2 <= 46340. So set scale appropriately" << endl;
+
+		double scale=1;
+		getline(std::cin, input);
+		if (!input.empty()) {
+			istringstream stream(input);
+			stream >> scale;
+		}
+
+		if (scale < 1) {
+			cout << "bad data entered";
+			return -1;
+		}
+
+		cout << endl;
+		cout << endl;
+		cout << "The value you entered for the datapointnumber is " << datapointnumber;
+		cout << endl;
+		cout << "The value you entered for minimalmodelsize is " << outliers << endl ;
+		cout << "The value you entered for scale is " << scale << endl;
+		cout << "The value you entered for tolerance is " << tolerance;
+
+		cout << endl;
+	
+
+	
+
+		xv.clear();
+
+		yv.clear();
+
+		long xa = 0;
+		double ya = 0;
+
+		xv.reserve(datapointnumber);
+		yv.reserve(datapointnumber);
+
+		for (size_t i = 0; i < datapointnumber; i++) {
+			std::cout << "Enter motorposition " << i + 1<<"		";
+			std::getline(cin, input);
+			stringstream(input) >> xa;
+			xv.push_back(xa);
+		}
+		for (size_t i = 0; i < datapointnumber; i++) {
+			std::cout << "Enter hfd data " << i + 1<<"		";
+			std::getline(cin, input);
+			stringstream(input) >> ya;
+			yv.push_back(ya);
+		}
+		std::cout << "the entered motorpositions are: " << endl;
+
+		for (size_t i = 0; i < datapointnumber; i++) {
+
+			std::cout << xv[i] << ",  ";
+		}
+		std::cout << endl;
+		std::cout << "the hfd-data are: " << endl;
+		long minfocus = xv[0], maxfocus = xv[0];
+		for (size_t i = 0; i < datapointnumber; i++)
+		{
+			if (xv[i] > maxfocus)
+			{
+				maxfocus = xv[i];
+			}
+			if (xv[i] < minfocus)
+			{
+				minfocus = xv[i];
+			}
+		}
+	
+
+
+		for (size_t i = 0; i < datapointnumber; i++) {
+
+			std::cout << yv[i] << ",  ";
+		}
+		std::cout << endl;
+
+		attempt(xv, yv,scale, datapointnumber, outliers, tolerance,&time);
+	}
+
+	cout << "time used" << endl;
+	cout << time << endl;
+
+
+	cout << "press key to end ";
+	getline(std::cin, input);
+	return 1;
+}
+
+
+
+	
+
