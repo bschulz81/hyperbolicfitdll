@@ -97,15 +97,16 @@ using namespace std;
 
 
 // The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
-// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fitt with the added point is then made and the process is repeated with another initial combination of points.
+// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fit with the added point is then made and the process is repeated with another initial combination of points.
+// The algorithm works in parallel with several threads. So it benefits from processors with multiple cores.
 // 
-// The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k) is larger than 20 choose 10 = 184756. Otherwise, the combinations are searched deterministically.
+// The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k) is larger than 22 choose 11 = 705432. Otherwise, the combinations are searched deterministically.
 // 
 // stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
 // stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 // 
-// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 20 choose 10 = 184756.
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 22 choose 11 = 705432.
 
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
