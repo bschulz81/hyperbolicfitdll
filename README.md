@@ -41,6 +41,10 @@
 
 
 // Currently, the library has two functions:
+// one of them is focusposition_Regression with the following syntax
+
+HYPERBOLICFIT_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,	vector<size_t>* indices_of_used_points = NULL,	vector<double>* usedpoints_line_x = NULL, vector<double>* usedpoints_line_y = NULL, vector<size_t>* indices_of_removedpoints = NULL, vector<double>* removedpoints_line_x = NULL, vector<double>* removedpoints_line_y = NULL,	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, long backslash = 0, double scale = 1.5, bool use_median_regression = false,
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method= tolerance_multiplies_standard_deviation_of_error, double tolerance = 3);
 
 // The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes a linear regression with a least square 
 // error comparison. If specified, the RANSAC can also use repeaded median regression.
@@ -55,7 +59,8 @@
 // If the function terminates successfully, the pointer focpos contains the estimated focusposition as a variable of type long that the function computes. This pointer must not be NULL if the
 // function is to terminate successfully
 
-// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the absolute values of the differences between the best fit and the measurement data. 
+// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the squares of the differences between a square of the the best fit and a square of the measurement data. 
+// Yes, the errors involve two squares because we calculate the squared error of a fit where the hyperbola was converted to a line.
 
 
 // main_slope and main_intercept are pointers to double values. If the pointers are not NULL, their values will be the slope and intercept of a line given by
@@ -74,14 +79,15 @@
 
 // The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
 // if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fit with the added point is then made and the process is repeated with another initial combination of points.
+// The algorithm works in parallel with several threads. So it benefits from processors with multiple cores.
 // 
-// The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k)  is larger than 22 choose 11==705432. Otherwise, the combinations are searched deterministically.
+// The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k) is larger than 22 choose 11 = 705432. Otherwise, the combinations are searched deterministically.
 // 
 // stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
 // stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 // 
-// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient of n choose k is larger than 22 choose 11==705432.
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 22 choose 11 == 705432.
 
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
@@ -92,10 +98,10 @@
 // The default of scale is 1.
 // Sometimes, the focus point may be outside of the interval of motor positions where the hfd was measured.
 // let  middle =(max + min) / 2 and max and min be the maximum and minimum motorposition where a hfd was measured.
-// If an initial search finds the best focus point exactly at the right edge of the measurement interval of motor positions,
+// If an initial search finds the best focus point within 10 positions to be at the right edge of the measurement interval of motor positions,
 // then, if scale>1, the right side of the interval where the best focus is searched is enlarged. The new right boundary is then given by
 // max = middle + (max - middle) * abs(scale)
-// Similarly, if an initial search finds the best focus point exactly on the left side of the measurement interval, the search interval is enlarged, with the new left boundary given by
+// Similarly, if an initial search finds the best focus point within 10 positions to be on the left side of the measurement interval, the search interval is enlarged, with the new left boundary given by
 // min = (middle - (middle - min) * abs(scale).
 
 // use_median_regression is a parameter that specifies whether the RANSAC uses a simple linear regression or a median regression.
@@ -104,15 +110,32 @@
 // maximum_number_of_outliers is a parameter that specifies how many outliers the ransac can maximally throw away.
 
 
-// rejection_method  is a parameter that specifies the method which is used to reject outliers.
-// Assume you have n datapoints. The algorithm works by searching through either all or (if the binominal coefficient of points over the number of outliers is larger than 20 choose 10) randomly generated so - called minimal combinations
+// rejection_method  is a parameter that specifies the method which is used to reject outliers. It can have the following values:
+
+typedef enum
+{
+	no_rejection,
+	tolerance_is_maximum_squared_error,
+	tolerance_multiplies_standard_deviation_of_error,
+	tolerance_is_significance_in_Grubbs_test,
+	tolerance_is_decision_in_MAD_ESTIMATION,
+	tolerance_is_decision_in_S_ESTIMATION,
+	tolerance_is_decision_in_Q_ESTIMATION,
+	tolerance_is_decision_in_T_ESTIMATION,
+	use_peirce_criterion,
+	tolerance_is_biweight_midvariance
+}outlier_criterion;
+
+
+
+// Assume you have n datapoints. The algorithm works by searching through either all or (if the binominal coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
 // of m=n - maximum_number_of_outliers points.
 // 
 // 
 // The algorithm searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
 // For each minimal combination, the points outside of this minimal set of m points are considered. 
 
-// The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x). 
+// The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x) where w is the squared hfd at x. 
 
 // If
 
@@ -121,7 +144,7 @@
 
 // rejection_method==tolerance_is_maximum_squared_error, 
 
-// then a point p outside of the  minimal combination are only added to the final fit if its squared error err_p*err_p fulfills
+// then a point p outside of the  minimal combination are only added to the final fit if its squared error  err_p*err_p fulfills
 
 // err_p*err_p<=abs(tolerance).
 
@@ -129,8 +152,10 @@
 
 // To specify the tolerable error directly is useful if the largest tolerable error is known, e.g. from a measurement of the seeing. By taking a series of images, 
 // an application may measure the random deviation of the hfd from the average that stars have. With outlier detection methods, one can remove the outliers of large amplitudes.
-// setting tolerance_in_sigma_units=false, one can supply a // maximally tolerable deviation from the average hfd directly to the library as the tolerance parameter.
+// setting tolerance_in_sigma_units=false, one can supply a maximally tolerable deviation from the average hfd directly to the library as the tolerance parameter.
 // The tolerance value then corresponds to the absolute value of the maximally tolerable hfd deviation.
+// note that the error is given with respect to the squared hfd's. I.e if you measure a hfd u at a motor position x, then square its value to g(x)=u(x)^2 and compute the average w(x) of these values. 
+// The maximum error is then given by the maximum value of M=abs(w(x)-g(x)), where g(x) is such that it maximizes M. The maximum squared error is given by M^2.
 
 // If 
 // rejection_method== tolerance_multiplies_standard_deviation_of_error,
@@ -196,8 +221,7 @@
 // One then makes Grubb's test with this value (which depends on the number of samples), and if it is an outlier, one removes this value and repeats the procedure.
 // 
 // This library modifies Grubb's test a bit, in that it does not include points which fail Grubb's test. It does not search for the largest outlier, removes it 
-// and then recalculates the test statistic with an updated sample size. 
-// This is done for computational speed, and it should correspond to the behavior of Grubb's test with a very large sample size
+// and then recalculates the test statistic with an updated sample size. This is done for computational speed, and it should correspond to the behavior of Grubb's test with a very large sample size
 // 
 // if 
 // rejection_method==use_peirce_criterion, 
@@ -209,11 +233,23 @@
 
 // tolerance is a parameter that is used for the different rejection methods.
  
-// The function focusposition_Regression returns false on error and true if it is successful.
+// The function returns false on error and true if it is successful.
 
 
 
-// The function findbackslash finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
+
+// The function findbackslash has the following syntax:
+
+
+extern "C" HYPERBOLICFIT_API bool findbackslash_Regression(long* backslash,
+	vector<long> x1, vector<double> y1, vector<long> x2, vector<double> y2, double* main_error1=NULL, double* main_slope1=NULL, double* main_intercept1=NULL, vector<size_t>*indicesofusedpoints1=NULL,
+	vector<double>*used_points1_line_x=NULL, vector<double>*used_points1_line_y=NULL, vector<size_t>*indicesofremovedpoints1=NULL, vector<double>*removedpoints1_line_x=NULL, vector<double>*removedpoints1_line_y=NULL,
+	double* main_error2=NULL, double* main_slope2=NULL, double* main_intercept2=NULL, vector<size_t>*indicesofusedpoints2 = NULL,
+	vector<double>*used_points2_line_x=NULL, vector<double>*used_points2_line_y=NULL, vector<size_t>*indicesofremovedpoints2=NULL, vector<double>*removedpoints2_line_x=NULL, vector<double>*removedpoints2_line_y=NULL,
+	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.5, bool use_median_regression = false,
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_multiplies_standard_deviation_of_error, double tolerance = 2);
+
+//It finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
 // The idea to correct for the backslash in this way was first published by Jim Hunt (username JST200) at https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265
 
 // The function expects 2 data sets of motor positions x1 and x2 and hfd values y1 and y2. The function then calls focusposition_Regression and makes a curve fit for both sets.
@@ -221,12 +257,9 @@
 //
 // optimal_focus_point_2 - optimal_focus_point1
 
-// the parameters main_slope1, main_intercept1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, 
-// removedpoints1_line_x, removedpoints1_line_y, and main_slope2, main_intercept2, indicesofusedpoints2, used_points2_line_x, 
-// used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y
+// the parameters main_slope1, main_intercept1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y
+// and main_slope2, main_intercept2, indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y
 // have the same meaning as the corresponding return parameters of focusposition_Regression, just that they are for the two separate datasets x1,y1 and x2,y2.
 
-// The parameters stop_after_seconds, stop_after_numberofiterations_without_improvement, maximum_number_of_outliers, tolerance, scale,
-// use_median_regression, use_median_regression
+// The parameters stop_after_seconds, stop_after_numberofiterations_without_improvement, maximum_number_of_outliers, tolerance, scale, use_median_regression, use_median_regression
 // have the same meaning as the corresponding parameters in focusposition_Regression and are used for the fits of both datasets.
-
