@@ -64,6 +64,8 @@
 #include "hyperbolicfitdll.h"
 #include <random>  
 #include <valarray>
+#include <mutex>
+#include <execution>
 struct maybe_inliner
 {
 	size_t point;
@@ -117,11 +119,11 @@ inline void stdeviation(valarray<double>* errs, double* stdev, double* average, 
 
 inline double median(valarray<double>* arr,size_t n, size_t nhalf)
 {
-	nth_element(std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr)+n);
+	nth_element(std::execution::par,std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr)+n);
 	double  med = (*arr)[nhalf];
 	if (n % 2 == 0)
 	{
-		auto max_it = max_element(std::begin(*arr), std::begin(*arr) + nhalf);
+		auto max_it = max_element(std::execution::par,std::begin(*arr), std::begin(*arr) + nhalf);
 		med = (*max_it + med) / 2.0;
 	}
 	return med;
@@ -131,7 +133,7 @@ inline double median(valarray<double>* arr,size_t n, size_t nhalf)
 inline double lowmedian(valarray<double>* arr,size_t n)
 {
 	size_t m = (size_t)(floor(((double)n + 1.0) / 2.0) - 1.0);
-	nth_element(std::begin(*arr), std::begin(*arr) + m, std::begin(*arr)+n);
+	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + m, std::begin(*arr)+n);
 	return (double)(*arr)[m];
 }
 
@@ -146,25 +148,25 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 
 	valarray<double>line_x2(usedpoints);
 
-	double thiserr, thisslope, thisintercept,t;
+	
 	if (use_median_regression)
 	{
+
 		valarray<double> stacks2(usedpoints);
 		size_t size2 = usedpoints - 1;
 		valarray<double> stacks1(size2);
-		
+
 		size_t halfsize = usedpoints / 2;
 
 		valarray<double> stacki1(usedpoints);
 
 		for (long h = minfocus; h <= maxfocus; h++)
-		{
-			for (size_t n = 0; n <  usedpoints; n++)
+		{			
+			for (size_t i = 0; i < usedpoints; i++)
 			{
-				double k = (double)(x2)[n] - (double)h;
-				line_x2[n] = k * k;
+				double k = (double)(x2)[i] - (double)h;
+				line_x2[i] = k * k;
 			}
-			
 			for (size_t i = 0; i < usedpoints; i++)
 			{
 				size_t q = 0;
@@ -172,7 +174,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 				{
 					if (i != j)
 					{
-						t = line_x2[j] - line_x2[i];
+						double t = line_x2[j] - line_x2[i];
 						if (t != 0)
 						{
 							stacks1[q] = (line_y2[j] - line_y2[i]) / t;
@@ -180,24 +182,23 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 						}
 					}
 				}
-				stacks2[i] = median(&stacks1, q, q/2);
+				stacks2[i] = median(&stacks1, q, q / 2);
 			}
-			thisslope = median(&stacks2, usedpoints, halfsize);
+
+			double thisslope = median(&stacks2, usedpoints, halfsize);
 
 			for (size_t i = 0; i < usedpoints; i++)
 			{
 				stacki1[i] = ((line_y2)[i] - thisslope * line_x2[i]);
 			}
-			thisintercept = median(&stacki1, usedpoints, halfsize);
-
-			thiserr = 0;
+			double thisintercept = median(&stacki1, usedpoints, halfsize);
+			double thiserr = 0;
 			for (size_t n = 0; n < usedpoints; n++)
 			{
 				double k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
 				k *= k;
 				thiserr += k;
 			}
-
 			if (thiserr < *ferr)
 			{
 				*fintercept = thisintercept;
@@ -208,9 +209,8 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 		}
 	}
 	else
-	{
-		double xaverage, yaverage;
-		for (long h = minfocus; h <= maxfocus; h++)
+	{	
+		for (long h=minfocus;h<=maxfocus;h++)
 		{
 			for (size_t n = 0; n < usedpoints; n++)
 			{
@@ -221,31 +221,30 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 			double sumx = 0, sumy = 0, sumxy = 0, sumxx = 0;
 			for (size_t i = 0; i < usedpoints; i++)
 			{
-				sumx += (double)line_x2[i];
-				sumy += (double)line_y2[i];
-				sumxy += ((double)line_x2[i]) * ((double)line_y2[i]);
-				sumxx += ((double)line_x2[i]) * ((double)line_x2[i]);
+				sumx += line_x2[i];
+				sumy += line_y2[i];
+				sumxy += line_x2[i] * line_y2[i];
+				sumxx += line_x2[i] * line_x2[i];
 			}
 
-			xaverage = sumx / (double)usedpoints;
-			yaverage = sumy / (double)usedpoints;
+			double xaverage = sumx / (double)usedpoints;
+			double yaverage = sumy / (double)usedpoints;
 
-			t = sumxx - sumx * xaverage;
+			double t = sumxx - sumx * xaverage;
 			if (t == 0)
 			{
 				return false;
 			}
-			thisslope = (sumxy - sumx * yaverage) / t;
-			thisintercept = yaverage - thisslope * xaverage;
 
-			thiserr = 0;
+			double thisslope = (sumxy - sumx * yaverage) / t;
+			double thisintercept = yaverage - thisslope * xaverage;
+			double thiserr = 0;
 			for (size_t n = 0; n < usedpoints; n++)
 			{
 				double k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
 				k *= k;
 				thiserr += k;
 			}
-
 			if (thiserr < *ferr)
 			{
 				*fintercept = thisintercept;
@@ -254,6 +253,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 				*focpos = h;
 			}
 		}
+
 	}
 
 	return true;
@@ -448,7 +448,7 @@ inline double Q_estimator(valarray<double>* err, size_t s)
 	size_t h = s / 2 + 1;
 	size_t k = binominal(h, 2) - 1;
 
-	std::nth_element(std::begin(t1), std::begin(t1) + k,std::end(t1));
+	std::nth_element(std::execution::par,std::begin(t1), std::begin(t1) + k,std::end(t1));
 
 	double cn[] = { 0,0,0.399, 0.994, 0.512 ,0.844 ,0.611, 0.857, 0.669 ,0.872 };
 	double cc = 1;
@@ -580,7 +580,7 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	size_t h = s / 2 + 1;
 	double w = 0;
-	sort(std::begin(med1), std::end(med1));
+	sort(std::execution::par,std::begin(med1), std::end(med1));
 	for (size_t i = 1; i <= h; i++)
 	{
 		w += med1[i - 1];
@@ -688,6 +688,7 @@ inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<d
 				break;
 			}
 		}
+
 
 		for (size_t j = 0; j < mp.size(); j++)
 		{
@@ -813,6 +814,8 @@ inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<d
 	}
 	return true;
 }
+
+
 bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
 	vector<size_t>* indices_of_used_points,
 	vector<double>* usedpoints_line_x, vector<double>* usedpoints_line_y, vector<size_t>* indices_of_removedpoints, vector<double>* removedpoints_line_x, vector<double>* removedpoints_line_y,
@@ -891,10 +894,10 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	if (maxfocus - minfocus == 0)
 		return false;
 
-	vector<size_t> removedindices, usedindices, thisremovedindices, thisusedindices;
+	vector<size_t> removedindices, usedindices;
 
-	double thiserr = DBL_MAX, thisslope=0, thisintercept=0, error=DBL_MAX,intercept=0,slope=0, additionaldata = 0;
-	long thisfocpos = 0;
+	double  error=DBL_MAX,intercept=0,slope=0, additionaldata = 0;
+
 
 	if (rejection_method == use_peirce_criterion)
 	{
@@ -905,25 +908,33 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		additionaldata = crit(tolerance, pointnumber);
 	}
 
-	double k;
-	size_t counter1 = 0;
-
+	
 	valarray <long> xv(x.data(), x.size());
 	valarray <double> yv(y.data(), y.size());
 
 	size_t numbercomp = binominal(pointnumber, maximum_number_of_outliers);
-
-	if (numbercomp <=(size_t)184756)
+	std::mutex mtx;
+	if (numbercomp <= (size_t)705432)
 	{
-		do
+		valarray<valarray<bool>> arr(numbercomp);
+		for (size_t i = 0; i < numbercomp; i++)
 		{
-			indices2 = indices;
-			if (Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &indices2, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method))
+			arr[i] = indices;
+			std::next_permutation(std::begin(indices), std::end(indices));
+		}
+		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool> arri)
+		{
+			vector<size_t>	thisremovedindices, thisusedindices;
+			double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
+			long thisfocpos = 0;
+			bool b = Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+			double k1 = thiserr / thisusedindices.size();
+			mtx.lock();
+			if (b)
 			{
-				k = thiserr / thisusedindices.size();
-				if (k < error)
+				if (k1 < error)
 				{
-					error = k;
+					error = k1;
 					*focpos = thisfocpos;
 					slope = thisslope;
 					intercept = thisintercept;
@@ -931,8 +942,8 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 					removedindices = thisremovedindices;
 				}
 			}
-		} while (std::next_permutation(std::begin(indices), std::end(indices)));
-
+			mtx.unlock();
+		});
 	}
 	else
 	{
@@ -940,33 +951,48 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		std::random_device rng;
 		std::mt19937 urng(rng());
 		double seconds = 0;
-
+		size_t counter1 = 0;
 		do
-		{	
-			shuffle(std::begin(indices),std::end(indices), urng);
-			indices2 = indices;
-			if (Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &indices2, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method))
+		{
+			valarray<valarray<bool>> arr(705432);
+			for (size_t i = 0; i < 705432; i++)
 			{
-				k = thiserr / thisusedindices.size();
-				if (k < error)
-				{
-					error = k;
-					*focpos = thisfocpos;
-					slope = thisslope;
-					intercept = thisintercept;
-					usedindices = thisusedindices;
-					removedindices = thisremovedindices;
-					counter1 = 0;
-				}
+				shuffle(std::begin(indices), std::end(indices), urng);
+				arr[i] = indices;
 			}
-			if (counter1 == stop_after_numberofiterations_without_improvement)
+			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool> arri)
+			{
+				vector<size_t>	thisremovedindices, thisusedindices;
+				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
+				long thisfocpos = 0;
+				bool b = Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+				double k1 = thiserr / thisusedindices.size();
+
+				mtx.lock();
+				counter1++;
+				if (b)
+				{
+					if (k1 < error)
+					{
+						error = k1;
+						*focpos = thisfocpos;
+						slope = thisslope;
+						intercept = thisintercept;
+						usedindices = thisusedindices;
+						removedindices = thisremovedindices;
+						counter1 = 0;
+					}
+				}
+				mtx.unlock();
+			});
+
+			if (counter1>= stop_after_numberofiterations_without_improvement)
 			{
 				break;
 			}
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			seconds = elapsed_seconds.count();		
-			counter1++;
 		} while (seconds < fabs(stop_after_seconds));
 	}
 
@@ -1011,7 +1037,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		(*removedpoints_line_y).resize(j);
 		for (size_t c = 0; c < j; c++)
 		{
-			k =(double) x[removedindices[c]] -(double) *focpos;
+			double k =(double) x[removedindices[c]] -(double) *focpos;
 			k *= k;
 			(*removedpoints_line_x)[c]=(k);
 			double w = y[removedindices[c]];
@@ -1027,7 +1053,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		(*usedpoints_line_y).resize(p);
 		for (size_t c = 0; c < p; c++)
 		{
-			k = (double)x[usedindices[c]] -(double) *focpos;
+			double k = (double)x[usedindices[c]] -(double) *focpos;
 			k *= k;
 			(*usedpoints_line_x)[c]=(k);
 			double w = y[usedindices[c]];
