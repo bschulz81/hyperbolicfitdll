@@ -3,7 +3,7 @@
 // <Benjamin Schulz> 
 // Responsible for:
 // The implementation of the library in C++, see https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587),
-// The development of a parallelized RANSAC inspired algorithm that removes outlier data in the function "focusposition_Regression", 
+// The development of a RANSAC inspired algorithm to remove outliers in the function "focusposition_Regression", 
 // The implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
 // The implementation of various known outlier detection detection methods within the RANSAC (MAD, S, Q, and T estimators), Grubb's test for outliers, Peirce's criterion.
 
@@ -79,7 +79,8 @@ using namespace std;
 // If the function terminates successfully, the pointer focpos contains the estimated focusposition as a variable of type long that the function computes. This pointer must not be NULL if the
 // function is to terminate successfully
 
-// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the absolute values of the differences between the best fit and the measurement data. 
+// main_error is a pointer to a double value. If the pointer is not NULL, the value of main_error will be the sum of the squares of the differences between a square of the the best fit and a square of the measurement data. 
+// The errors involve two squares because we calculate the squared error of a fit where the hyperbola was converted to a line.
 
 
 // main_slope and main_intercept are pointers to double values. If the pointers are not NULL, their values will be the slope and intercept of a line given by
@@ -106,7 +107,7 @@ using namespace std;
 // stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 // 
-// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 22 choose 11 = 705432.
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 22 choose 11 == 705432.
 
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
@@ -117,10 +118,10 @@ using namespace std;
 // The default of scale is 1.
 // Sometimes, the focus point may be outside of the interval of motor positions where the hfd was measured.
 // let  middle =(max + min) / 2 and max and min be the maximum and minimum motorposition where a hfd was measured.
-// If an initial search finds the best focus point exactly at the right edge of the measurement interval of motor positions,
+// If an initial search finds the best focus point within 10 positions to be at the right edge of the measurement interval of motor positions,
 // then, if scale>1, the right side of the interval where the best focus is searched is enlarged. The new right boundary is then given by
 // max = middle + (max - middle) * abs(scale)
-// Similarly, if an initial search finds the best focus point exactly on the left side of the measurement interval, the search interval is enlarged, with the new left boundary given by
+// Similarly, if an initial search finds the best focus point within 10 positions to be on the left side of the measurement interval, the search interval is enlarged, with the new left boundary given by
 // min = (middle - (middle - min) * abs(scale).
 
 // use_median_regression is a parameter that specifies whether the RANSAC uses a simple linear regression or a median regression.
@@ -137,7 +138,7 @@ using namespace std;
 // The algorithm searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
 // For each minimal combination, the points outside of this minimal set of m points are considered. 
 
-// The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x). 
+// The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x) where w is the squared hfd at x. 
 
 // If
 
@@ -146,7 +147,7 @@ using namespace std;
 
 // rejection_method==tolerance_is_maximum_squared_error, 
 
-// then a point p outside of the  minimal combination are only added to the final fit if its squared error err_p*err_p fulfills
+// then a point p outside of the  minimal combination are only added to the final fit if its squared error  err_p*err_p fulfills
 
 // err_p*err_p<=abs(tolerance).
 
@@ -156,6 +157,8 @@ using namespace std;
 // an application may measure the random deviation of the hfd from the average that stars have. With outlier detection methods, one can remove the outliers of large amplitudes.
 // setting tolerance_in_sigma_units=false, one can supply a maximally tolerable deviation from the average hfd directly to the library as the tolerance parameter.
 // The tolerance value then corresponds to the absolute value of the maximally tolerable hfd deviation.
+// note that the error is given with respect to the squared hfd's. I.e if you measure a hfd u at a motor position x, then square its value to g(x)=u(x)^2 and compute the average w(x) of these values. 
+// The maximum error is then given by the maximum value of M=abs(w(x)-g(x)), where g(x) is such that it maximizes M. The maximum squared error is given by M^2.
 
 // If 
 // rejection_method== tolerance_multiplies_standard_deviation_of_error,
