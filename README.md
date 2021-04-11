@@ -73,7 +73,7 @@
 
 
 // The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
-// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fitt with the added point is then made and the process is repeated with another initial combination of points.
+// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fit with the added point is then made and the process is repeated with another initial combination of points.
 // 
 // The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k)  is larger than 22 choose 11==705432. Otherwise, the combinations are searched deterministically.
 // 
