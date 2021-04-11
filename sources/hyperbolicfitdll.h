@@ -3,7 +3,7 @@
 // <Benjamin Schulz> 
 // Responsible for:
 // The implementation of the library in C++, see https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587),
-// The development of a RANSAC inspired algorithm to remove outliers in the function "focusposition_Regression", 
+// The development of a parallelized RANSAC inspired algorithm that removes outlier data in the function "focusposition_Regression", 
 // The implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
 // The implementation of various known outlier detection detection methods within the RANSAC (MAD, S, Q, and T estimators), Grubb's test for outliers, Peirce's criterion.
 
