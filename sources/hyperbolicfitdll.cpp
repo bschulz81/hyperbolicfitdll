@@ -74,11 +74,11 @@ struct maybe_inliner
 
 
 inline void stdeviation(valarray<double>* errs, double* stdev, double* average, size_t s);
-inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression, valarray<bool>* usepoint, size_t usedpoints);
-inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale,
+inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression, valarray<bool>* usepoint, size_t usedpoints);
+inline bool Ransac_regression(valarray<long>* x, valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale,
 	valarray<bool>usedpoint,size_t usedpoints, double tolerance, long* this_focpos, double* thiserr,	double* thisslope, double* thisintercept, vector<size_t>* usedindices, 
 	vector<size_t>* removedindices, double additionaldata, bool use_median_regression, outlier_criterion rejection_method);
-inline bool Search_min_error(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression, vector<double>* errs, valarray<bool>* indicestouse,size_t usedpoints);
+inline bool Search_min_error(valarray<long>* x,  valarray<double>* line_y, long minfocus, long maxfocus, double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression, vector<double>* errs, valarray<bool>* indicestouse,size_t usedpoints);
 inline double median(valarray<double>* arr, size_t n, size_t nhalf);
 inline double lowmedian(valarray<double>*arr, size_t n);
 inline double factorial(size_t n);
@@ -138,12 +138,11 @@ inline double lowmedian(valarray<double>* arr,size_t n)
 }
 
 
-inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression,valarray<bool>*usepoint,size_t usedpoints)
+inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression,valarray<bool>*usepoint,size_t usedpoints)
 {
 	*ferr = DBL_MAX;
 
 	valarray<long> x2=(*x)[*usepoint];
-	valarray<double> y2 =(*y)[*usepoint];
 	valarray<double> line_y2 = (*line_y)[*usepoint];
 
 	valarray<double>line_x2(usedpoints);
@@ -159,6 +158,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 		size_t halfsize = usedpoints / 2;
 
 		valarray<double> stacki1(usedpoints);
+
 
 		for (long h = minfocus; h <= maxfocus; h++)
 		{			
@@ -196,7 +196,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 			double thiserr = 0;
 			for (size_t n = 0; n < usedpoints; n++)
 			{
-				double	k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
+				double	k = fabs(thisslope * line_x2[n] + thisintercept) - line_y2[n];
 				thiserr += k * k;
 			}
 
@@ -216,6 +216,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 		{
 			sumy += line_y2[i];
 		}
+
 		for (long h=minfocus;h<=maxfocus;h++)
 		{
 			double sumx = 0, sumxy = 0, sumxx = 0;
@@ -242,9 +243,10 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 			double thisintercept = yaverage - thisslope * xaverage;
 
 			double thiserr=0;
+
 			for (size_t n = 0; n < usedpoints; n++)
 			{
-				double	k = sqrt(fabs(thisslope * (double)line_x2[n] + thisintercept)) - y2[n];
+				double	k =fabs(thisslope * line_x2[n] + thisintercept) -line_y2[n];
 				thiserr += k*k;
 			}
 
@@ -263,15 +265,15 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* y, val
 }
 
 
-inline bool Search_min_error(valarray<long>* x, valarray<double>* y,valarray<double>*line_y, long minfocus, long maxfocus,double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression,valarray<bool>*indicestouse,size_t usedpoints)
+inline bool Search_min_error(valarray<long>* x,valarray<double>*line_y, long minfocus, long maxfocus,double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression,valarray<bool>*indicestouse,size_t usedpoints)
 {
 
-	if (!regression(err, x, y, line_y, minfocus, maxfocus, focpos, fintercept, fslope, use_median_regression, indicestouse, usedpoints))
+	if (!regression(err, x, line_y, minfocus, maxfocus, focpos, fintercept, fslope, use_median_regression, indicestouse, usedpoints))
 	{
 		return false;
 	}
-
-	if ((*focpos == maxfocus)&& (scale >1))
+	long dist = abs(*focpos - maxfocus);
+	if ((dist<=10) && (scale >1))
 	{
 		
 		const long middle=lround(((double)maxfocus +(double) minfocus) / 2.0);
@@ -279,7 +281,7 @@ inline bool Search_min_error(valarray<long>* x, valarray<double>* y,valarray<dou
 		maxfocus = (long)((double)middle + ((double)maxfocus -(double) middle) * fabs(scale));
 		long thisfocpos;
 		double thiserr, thisslope, thisintercept;
-		if(!regression(&thiserr,x, y, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse,usedpoints))
+		if(!regression(&thiserr,x, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse,usedpoints))
 		{
 			return false;
 		}
@@ -292,14 +294,15 @@ inline bool Search_min_error(valarray<long>* x, valarray<double>* y,valarray<dou
 			*focpos = thisfocpos;
 		}
 	}
-	else if ((*focpos == minfocus )&& (scale >1) )
+	dist = abs(*focpos - minfocus);
+	if ((dist<=10) && (scale >1) )
 	{
 		const long middle = lround(((double)maxfocus + (double)minfocus) / 2.0);
 		maxfocus = minfocus;
 		minfocus = (long)((double)middle - ((double)middle-(double)minfocus) * fabs(scale));
 		long thisfocpos;
 		double thiserr, thisslope, thisintercept;
-		if (!regression(&thiserr, x, y, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse, usedpoints)) 
+		if (!regression(&thiserr, x, line_y, minfocus, maxfocus, &thisfocpos, &thisintercept, &thisslope, use_median_regression, indicestouse, usedpoints)) 
 		{
 			return false;
 		}
@@ -590,11 +593,11 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	return  (1.38 /((double) h))*w;
 }
-inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale, valarray<bool>*usedpoint,size_t usedpoints, double tolerance, long* this_focpos, double* thiserr,
+inline bool Ransac_regression(valarray<long>* x,  valarray<double>* line_y, size_t pointnumber, long minfocus, long maxfocus, double scale, valarray<bool>*usedpoint,size_t usedpoints, double tolerance, long* this_focpos, double* thiserr,
 	double* thisslope, double* thisintercept, vector<size_t>* usedindices, vector<size_t>* removedindices,double additionaldata, bool use_median_regression, outlier_criterion rejection_method)
 {
 
-	if (!Search_min_error(x, y, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
+	if (!Search_min_error(x, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
 	{
 		return false;
 	}
@@ -621,7 +624,7 @@ inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<d
 	{
 		double xh = ((double)(*x)[p] - (double)*this_focpos);
 		xh *= xh;
-		double z =fabs(*thisslope * xh + *thisintercept) - (*y)[p]*(*y)[p];
+		double z =fabs(*thisslope * xh + *thisintercept) - (*line_y)[p];
 
 		err[p]=z;
 		err_sqr[p]=z * z;
@@ -811,7 +814,7 @@ inline bool Ransac_regression(valarray<long>* x, valarray<double>* y, valarray<d
 		(*usedindices).shrink_to_fit();
 	}
 
-	if (!Search_min_error(x, y, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
+	if (!Search_min_error(x, line_y, minfocus, maxfocus, scale, thiserr, thisintercept, thisslope, this_focpos, use_median_regression, usedpoint,usedpoints))
 	{
 		return false;
 	}
@@ -868,7 +871,6 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 
 
 	valarray<bool> indices(pointnumber);
-	valarray<bool> indices2(pointnumber);
 
 	valarray<double>line_yv(pointnumber);
 
@@ -913,7 +915,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 
 	
 	valarray <long> xv(x.data(), x.size());
-	valarray <double> yv(y.data(), y.size());
+
 
 	size_t numbercomp = binominal(pointnumber, maximum_number_of_outliers);
 	std::mutex mtx;
@@ -930,7 +932,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			vector<size_t>	thisremovedindices, thisusedindices;
 			double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 			long thisfocpos = 0;
-			bool b = Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+			bool b = Ransac_regression(&xv,  &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
 			double k1 = thiserr / thisusedindices.size();
 			mtx.lock();
 			if (b)
@@ -968,7 +970,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				vector<size_t>	thisremovedindices, thisusedindices;
 				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 				long thisfocpos = 0;
-				bool b = Ransac_regression(&xv, &yv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+				bool b = Ransac_regression(&xv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
 				double k1 = thiserr / thisusedindices.size();
 
 				mtx.lock();
@@ -1094,6 +1096,3 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
-
-
-
