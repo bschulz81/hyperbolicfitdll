@@ -64,8 +64,14 @@
 #include "hyperbolicfitdll.h"
 #include <random>  
 #include <valarray>
+
+#if __cplusplus == 201703L
 #include <mutex>
 #include <execution>
+#else
+#include <omp.h>
+#endif
+
 struct maybe_inliner
 {
 	size_t point;
@@ -119,11 +125,23 @@ inline void stdeviation(valarray<double>* errs, double* stdev, double* average, 
 
 inline double median(valarray<double>* arr,size_t n, size_t nhalf)
 {
+
+#if __cplusplus == 201703L
 	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr)+n);
+#else
+	nth_element(std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr) + n);
+#endif
+
+
 	double  med = (*arr)[nhalf];
 	if (n % 2 == 0)
 	{
+#if __cplusplus == 201703L
 		auto max_it = max_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf);
+#else
+		auto max_it = max_element(std::begin(*arr), std::begin(*arr) + nhalf);
+#endif
+
 		med = (*max_it + med) / 2.0;
 	}
 	return med;
@@ -133,7 +151,12 @@ inline double median(valarray<double>* arr,size_t n, size_t nhalf)
 inline double lowmedian(valarray<double>* arr,size_t n)
 {
 	size_t m = (size_t)(floor(((double)n + 1.0) / 2.0) - 1.0);
-	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + m, std::begin(*arr)+n);
+
+#if __cplusplus == 201703L
+	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + m, std::begin(*arr) + n);
+#else
+	nth_element(std::begin(*arr), std::begin(*arr) + m, std::begin(*arr)+n);
+#endif
 	return (double)(*arr)[m];
 }
 
@@ -454,7 +477,12 @@ inline double Q_estimator(valarray<double>* err, size_t s)
 	size_t h = s / 2 + 1;
 	size_t k = binominal(h, 2) - 1;
 
-	std::nth_element(std::execution::par, std::begin(t1), std::begin(t1) + k,std::end(t1));
+#if __cplusplus == 201703L
+	std::nth_element(std::execution::par, std::begin(t1), std::begin(t1) + k, std::end(t1));
+#else
+	std::nth_element(std::begin(t1), std::begin(t1) + k,std::end(t1));
+#endif
+
 
 	double cn[] = { 0,0,0.399, 0.994, 0.512 ,0.844 ,0.611, 0.857, 0.669 ,0.872 };
 	double cc = 1;
@@ -586,7 +614,12 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	size_t h = s / 2 + 1;
 	double w = 0;
+#if __cplusplus == 201703L
 	sort(std::execution::par, std::begin(med1), std::end(med1));
+#else
+	sort(std::begin(med1), std::end(med1));
+#endif
+
 	for (size_t i = 1; i <= h; i++)
 	{
 		w += med1[i - 1];
@@ -918,7 +951,11 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 
 
 	size_t numbercomp = binominal(pointnumber, maximum_number_of_outliers);
+
+#if __cplusplus == 201703L
 	std::mutex mtx;
+#endif
+
 	if (numbercomp <= (size_t)705432)
 	{
 		valarray<valarray<bool>> arr(numbercomp);
@@ -927,28 +964,56 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			arr[i] = indices;
 			std::next_permutation(std::begin(indices), std::end(indices));
 		}
-		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool> &arri)
+
+#if __cplusplus == 201703L
+		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
+			{
+				vector<size_t>	thisremovedindices, thisusedindices;
+				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
+				long thisfocpos = 0;
+				bool b = Ransac_regression(&xv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+				double k1 = thiserr / thisusedindices.size();
+				mtx.lock();
+				if (b)
+				{
+					if (k1 < error)
+					{
+						error = k1;
+						*focpos = thisfocpos;
+						slope = thisslope;
+						intercept = thisintercept;
+						usedindices = thisusedindices;
+						removedindices = thisremovedindices;
+					}
+				}
+				mtx.unlock();
+			}); 
+#else
+		#pragma omp parallel for
+		for (long i = 0; i < numbercomp; i++)
 		{
 			vector<size_t>	thisremovedindices, thisusedindices;
 			double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 			long thisfocpos = 0;
-			bool b = Ransac_regression(&xv,  &line_yv, pointnumber, minfocus, maxfocus, scale, &arri, minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+			bool b = Ransac_regression(&xv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arr[i], minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
 			double k1 = thiserr / thisusedindices.size();
-			mtx.lock();
-			if (b)
+			#pragma omp critical
 			{
-				if (k1 < error)
+				if (b)
 				{
-					error = k1;
-					*focpos = thisfocpos;
-					slope = thisslope;
-					intercept = thisintercept;
-					usedindices = thisusedindices;
-					removedindices = thisremovedindices;
+					if (k1 < error)
+					{
+						error = k1;
+						*focpos = thisfocpos;
+						slope = thisslope;
+						intercept = thisintercept;
+						usedindices = thisusedindices;
+						removedindices = thisremovedindices;
+					}
 				}
 			}
-			mtx.unlock();
-		});
+		}
+#endif
 	}
 	else
 	{
@@ -965,6 +1030,8 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				shuffle(std::begin(indices), std::end(indices), urng);
 				arr[i] = indices;
 			}
+
+#if __cplusplus == 201703L
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool> &arri)
 			{
 				vector<size_t>	thisremovedindices, thisusedindices;
@@ -990,6 +1057,34 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				}
 				mtx.unlock();
 			});
+
+#else
+			#pragma omp parallel for
+			for (long i = 0; i < 705432; i++)
+			{
+				vector<size_t>	thisremovedindices, thisusedindices;
+				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
+				long thisfocpos = 0;
+				bool b = Ransac_regression(&xv, &line_yv, pointnumber, minfocus, maxfocus, scale, &arr[i], minimummodelsize, tolerance, &thisfocpos, &thiserr, &thisslope, &thisintercept, &thisusedindices, &thisremovedindices, additionaldata, use_median_regression, rejection_method);
+				double k1 = thiserr / thisusedindices.size();
+				#pragma omp critical
+				{
+					counter1++;
+					if (b)
+					{
+						if (k1 < error)
+						{
+							error = k1;
+							*focpos = thisfocpos;
+							slope = thisslope;
+							intercept = thisintercept;
+							usedindices = thisusedindices;
+							removedindices = thisremovedindices;
+						}
+					}
+				}
+			}
+#endif
 
 			if (counter1>= stop_after_numberofiterations_without_improvement)
 			{
@@ -1096,3 +1191,6 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
+
+
+
