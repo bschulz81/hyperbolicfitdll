@@ -1015,6 +1015,8 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		}
 #endif
 	}
+
+
 	else
 	{
 		auto start = std::chrono::steady_clock::now();
@@ -1080,6 +1082,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 							intercept = thisintercept;
 							usedindices = thisusedindices;
 							removedindices = thisremovedindices;
+							counter1=0;
 						}
 					}
 				}
