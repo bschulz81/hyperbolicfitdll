@@ -990,7 +990,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			}); 
 #else
 		#pragma omp parallel for
-		for (long i = 0; i < numbercomp; i++)
+		for (long i = 0; i <(long) numbercomp; i++)
 		{
 			vector<size_t>	thisremovedindices, thisusedindices;
 			double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
@@ -1194,6 +1194,3 @@ bool findbackslash_Regression(long* backslash,
 		*backslash = focpos2 - focpos1;
 	return true;
 }
-
-
-
