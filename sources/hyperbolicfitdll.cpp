@@ -1,25 +1,27 @@
 // Copyright(c) < 2021 > 
-
 // <Benjamin Schulz> 
 // Responsible for:
-// The implementation of the library in C++, see https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587),
-// The development of a RANSAC inspired algorithm to remove outliers in the function "focusposition_Regression", 
-// The implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
-// The implementation of various known outlier detection detection methods within the RANSAC (MAD, S, Q, and T estimators), Grubb's test for outliers, Peirce's criterion.
+// The implementation of the library in C++, 
+// the development of a parallelized RANSAC inspired algorithm that can removes outlier data in the function "focusposition_Regression",
+// the implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
+// the implementation of various known outlier detection methods within the RANSAC 
+// (MAD, S, Q, and T, biweight-midvariance estimators), Grubb's test for outliers, Peirce's criterion
 
 // <Stephen King> 
 // Responsible for:
-// The Algorithm idea for the hyperbolic fit in the internal function "Regression" with the linear regression and least squares comparison, first suggested in  https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+// The Algorithm idea for the hyperbolic fit in the internal function "Regression" with the linear regression and least squares comparison, first suggested in
+// https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998 
 
 // <Jim Hunt>
 // Responsible for:
 // Some testing of the library,
-// the algorithm idea for "findbackslash_Regression", first suggested in https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265).
+// the algorithm idea for "findbackslash_Regression", first suggested in
+// https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265 
 
-// The user <cytan> in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 
+// The user <cytan>  
 // Responsible for:
-// The suggestion to throw out outlier data in "focusposition_Regression" by comparison of the error with the Standard-deviation.
-// Note that this idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.
+// The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
+// (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
 
 // The library makes use of an algorithm for student's distribution, which can be found at
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
@@ -28,16 +30,33 @@
 // Gould, B. A, Astronomical Journal, vol. 4, iss. 83, p. 81 - 87 (1855).
 
 // The library also has the possibility to use MAD, S, Q and T estimators. 
-// These estimators are extensively described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// These estimators are extensively described in 
+
+// Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
 // J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
+
 // Christophe Croux and Peter J.Rousseeuw, Time-effcient algorithms for two highly robust estimators of scale, 
 // In: Dodge Y., Whittaker J. (eds) Computational Statistics. Physica, Heidelberg, https ://doi.org/10.1007/978-3-662-26811-7_58
+
 // According to Rousseeuw and Croux, the S estimator has an advantange over the MAD estimator because it can also work for asymmetric distributions.
 // The same authors note that the Q estimator is better optimized than the S estimator for small sample sizes.
 // 
 // The library also can make use of the biweight midvariance estimator that was described in 
 // T. C. Beers,K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
 
+// Within the Ransac, the offers the possibility to fit the data using Siegel's repeated median slope from 
+// Siegel, Andrew, Technical Report No. 172, Series 2 By Department of Statistics Princeton University: Robust Regression Using Repeated Medians (September 1980)
+
+// In practice, repeated median regression is a rather slow fitting method. 
+// If median regression is not used, the RANSAC will use a faster linear regression algorithm for the 
+// hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+
+// See 
+// https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587 for the early development history of this software. 
+//
+// A recent version of this software can be downloaded at
+//
+// https://github.com/bschulz81/hyperbolicfitdll/ 
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
@@ -56,7 +75,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
 
 #include <vector>
 #include <chrono>
