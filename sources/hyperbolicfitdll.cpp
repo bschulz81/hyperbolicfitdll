@@ -1,4 +1,4 @@
-/// Copyright(c) < 2021 > 
+// Copyright(c) < 2021 > 
 // <Benjamin Schulz> 
 // Responsible for:
 // The implementation of the library in C++, 
@@ -100,7 +100,7 @@ struct maybe_inliner
 
 inline void stdeviation(valarray<double>* errs, double* stdev, double* average, size_t s);
 inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression, valarray<bool>* usepoint);
-inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale,valarray<bool>*usedpoint, size_t usedpoints, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method);
+inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale,valarray<bool>*usedpoint, size_t usedpoints, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method,size_t pointnumber, size_t pointnumberhalf);
 inline bool Search_min_error(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression, vector<double>* errs, valarray<bool>* indicestouse);
 inline double median(valarray<double>* arr, size_t n, size_t nhalf);
 inline double lowmedian(valarray<double>* arr, size_t n);
@@ -641,7 +641,7 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	return  (1.38 / ((double)h)) * w;
 }
-inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, valarray<bool>* usedpoint, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method)
+inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, valarray<bool>* usedpoint, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method,size_t pointnumber,size_t pointnumberhalf)
 {
 	long this_focpos=0;
 	double thiserr=DBL_MAX, thisslope=0.0, thisintercept=0.0;
@@ -650,13 +650,10 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 		return false;
 	}
 	vector<maybe_inliner> mp;
-	size_t pointnumber = (*x).size();
 	mp.reserve(pointnumber);
 
 	valarray<double>err(pointnumber);
 	valarray<double>err_sqr(pointnumber);
-
-	size_t pointnumberhalf = pointnumber / 2;
 
 	for (size_t p = 0; p < pointnumber; p++)
 	{
@@ -830,6 +827,7 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 	return true;
 }
 
+
 bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
 	vector<size_t>* indices_of_used_points,
 	vector<double>* usedpoints_line_x, vector<double>* usedpoints_line_y, vector<size_t>* indices_of_removedpoints, vector<double>* removedpoints_line_x, vector<double>* removedpoints_line_y,
@@ -846,6 +844,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	}
 
 	size_t pointnumber = x.size();
+	size_t pointnumberhalf = pointnumber / 2;
 
 	size_t minimummodelsize = pointnumber - maximum_number_of_outliers;
 
@@ -945,26 +944,35 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	{
 		std::unordered_set<std::vector<bool>> helper3;
 		vector<valarray<bool>> arr(numbercomp);
-
+		vector<valarray<bool>> arr2(numbercomp);
 		for (size_t i = 0; i < numbercomp; i++)
 		{
 			arr[i] = indices;
 			std::next_permutation(std::begin(indices), std::end(indices));
 		}
 
+	   size_t count2 = 0;
 #if __cplusplus == 201703L
+		
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
-				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method);
+				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+				if (b1)
+				{
+					std::vector<bool> helper(pointnumber);
+					helper.assign(std::begin(arri), std::end(arri));
+					bool b2;
+					mtx.lock();
+					b2 = helper3.insert(helper).second;
+					if (b2)
+					{
+						arr2[count2] = arri;
+						count2++;
+					}
+					mtx.unlock();
+				}
 			});
-		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
-			{
-			std::vector<bool> helper(pointnumber);
-			helper.assign(std::begin(arri), std::end(arri));
-			mtx.lock();
-			bool b2 = helper3.insert(helper).second;
-			mtx.unlock();
-			if(b2)
+		std::for_each(std::execution::par, std::begin(arr2), std::begin(arr2)+count2, [&](valarray<bool>& arri)
 			{
 				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 				long thisfocpos = 0;
@@ -982,32 +990,35 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 					}
 					mtx.unlock();
 				}
-			}
 		});
 #else
-
 		#pragma omp parallel for
 		for (long i = 0; i < (long)numbercomp; i++)
 		{
-			bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method);
+			bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+			if (b1)
+			{
+				std::vector<bool> helper(pointnumber);
+				helper.assign(std::begin(arr[i]), std::end(arr[i]));
+				bool b2;
+				#pragma omp critical
+				{
+					b2 = helper3.insert(helper).second;
+					if (b2)
+					{
+						arr2[count2] = arr[i];
+						count2++;
+					}
+				}
+			}
 		}
 
 		#pragma omp parallel for
-		for (long i = 0; i < (long)numbercomp; i++)
+		for (long i = 0; i < (long)count2; i++)
 		{
-			std::vector<bool> helper(pointnumber);
-			helper.assign(std::begin(arr[i]), std::end(arr[i]));
-			bool b2;
-			#pragma omp critical
-			{
-				b2 = helper3.insert(helper).second;
-			}
-
-			if(b2)
-			{
 				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 				long thisfocpos = 0;
-				bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept,&thisslope, &thisfocpos, use_median_regression, &arr[i]);
+				bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept,&thisslope, &thisfocpos, use_median_regression, &arr2[i]);
 				if (b3)
 				{
 					#pragma omp critical
@@ -1018,11 +1029,10 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 							*focpos = thisfocpos;
 							slope = thisslope;
 							intercept = thisintercept;
-							indices2 = arr[i];
+							indices2 = arr2[i];
 						}
 					}
 				}
-			}
 		}
 #endif
 	}
@@ -1034,68 +1044,80 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		{
 			std::unordered_set<std::vector<bool>> helper3;
 			vector<valarray<bool>> arr(number_of_attempts);
-
+			vector<valarray<bool>> arr2(number_of_attempts);
 			for (size_t i = 0; i < number_of_attempts; i++)
 			{
 				arr[i] = indices;
 				std::next_permutation(std::begin(indices), std::end(indices));
 			}
-
+			size_t count2 = 0;
 #if __cplusplus == 201703L
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
-					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method);
-				});
-			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
-				{
-					std::vector<bool> helper(pointnumber);
-					helper.assign(std::begin(arri), std::end(arri));
-					mtx.lock();
-					bool b2 = helper3.insert(helper).second;
-					mtx.unlock();
-					if (b2)
+					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+					if (b1)
 					{
-						double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
-						long thisfocpos = 0;
-						bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arri);
-						if (b3)
+						std::vector<bool> helper(pointnumber);
+						helper.assign(std::begin(arri), std::end(arri));
+						bool b2;
+						mtx.lock();
+						b2 = helper3.insert(helper).second;
+						if (b2)
 						{
-							mtx.lock();
-							if (thiserr < error)
-							{
-								error = thiserr;
-								*focpos = thisfocpos;
-								slope = thisslope;
-								intercept = thisintercept;
-								indices2 = arri;
-							}
-							mtx.unlock();
+							arr2[count2] = arri;
+							count2++;
 						}
+						mtx.unlock();
 					}
 				});
-#else	
-			#pragma omp parallel for
-			for (long i = 0; i < (long)number_of_attempts; i++)
-			{
-				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method);
-			}
 
-			#pragma omp parallel for
-			for (long i = 0; i < (long)number_of_attempts; i++)
-			{
-				std::vector<bool> helper(pointnumber);
-				helper.assign(std::begin(arr[i]), std::end(arr[i]));
-				bool b2;
-				#pragma omp critical
-				{
-					b2 = helper3.insert(helper).second;
-				}
-
-				if (b2)
+			std::for_each(std::execution::par, std::begin(arr2), std::begin(arr2)+count2, [&](valarray<bool>& arri)
 				{
 					double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 					long thisfocpos = 0;
-					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr[i]);
+					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arri);
+					if (b3)
+					{
+						mtx.lock();
+						if (thiserr < error)
+						{
+							error = thiserr;
+							*focpos = thisfocpos;
+							slope = thisslope;
+							intercept = thisintercept;
+							indices2 = arri;
+						}
+						mtx.unlock();			
+					}
+				});
+#else			
+			#pragma omp parallel for
+			for (long i = 0; i < (long)number_of_attempts; i++)
+			{
+				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+				if (b1)
+				{
+					std::vector<bool> helper(pointnumber);
+					helper.assign(std::begin(arr[i]), std::end(arr[i]));
+					bool b2;
+					#pragma omp critical
+					{
+						b2 = helper3.insert(helper).second;
+						if (b2)
+						{
+							arr2[count2] = arr[i];
+							count2++;
+						}
+					}
+				}
+			}
+
+			#pragma omp parallel for
+			for (long i = 0; i < count2; i++)
+			{
+					double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
+					long thisfocpos = 0;
+					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr2[i]);
 					if (b3)
 					{
 						#pragma omp critical
@@ -1106,37 +1128,49 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 								*focpos = thisfocpos;
 								slope = thisslope;
 								intercept = thisintercept;
-								indices2 = arr[i];
+								indices2 = arr2[i];
 							}
 						}
 					}
-				}
 			}
 #endif
 		}
 
 		std::unordered_set<std::vector<bool>> helper3;
-		vector<valarray<bool>> arr((numbercomp % number_of_attempts)+1);
+		size_t s = (numbercomp % number_of_attempts) + 1;
+		vector<valarray<bool>> arr(s);
+		vector<valarray<bool>> arr2(s);
 
-		for (size_t i = 0; i <= (numbercomp % number_of_attempts); i++)
+		for (size_t i = 0; i < s; i++)
 		{
 			arr[i] = indices;
 			std::next_permutation(std::begin(indices), std::end(indices));
 		}
+		size_t count2 = 0;
 #if __cplusplus == 201703L
+		
+
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
-				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method);
-			});
-		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
-			{
-				std::vector<bool> helper(pointnumber);
-				helper.assign(std::begin(arri), std::end(arri));
-				mtx.lock();
-				bool b2 = helper3.insert(helper).second;
-				mtx.unlock();
-				if (b2)
+				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+				if (b1)
 				{
+					std::vector<bool> helper(pointnumber);
+					helper.assign(std::begin(arri), std::end(arri));
+					bool b2;
+					mtx.lock();
+					b2 = helper3.insert(helper).second;
+					if (b2)
+					{
+						arr2[count2] = arri;
+						count2++;
+					}
+					mtx.unlock();
+				}
+			});
+
+		std::for_each(std::execution::par, std::begin(arr2), std::begin(arr2)+count2, [&](valarray<bool>& arri)
+			{
 					double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 					long thisfocpos = 0;
 					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arri);
@@ -1153,32 +1187,35 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 						}
 						mtx.unlock();
 					}
-				}
 			});
 #else
-	
 		#pragma omp parallel for
-		for (long i = 0; i <= (long)(numbercomp % number_of_attempts); i++)
+		for (long i = 0; i < (long)s; i++)
 		{
-			bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method);
+			bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
+			if (b1)
+			{
+				std::vector<bool> helper(pointnumber);
+				helper.assign(std::begin(arr[i]), std::end(arr[i]));
+				bool b2;
+				#pragma omp critical
+				{
+					b2 = helper3.insert(helper).second;
+					if (b2)
+					{
+						arr2[count2] = arr[i];
+						count2++;
+					}
+				}
+			}
 		}
 
 		#pragma omp parallel for
-		for (long i = 0; i <= (long)(numbercomp % number_of_attempts); i++)
+		for (long i = 0; i < count2; i++)
 		{
-			std::vector<bool> helper(pointnumber);
-			helper.assign(std::begin(arr[i]), std::end(arr[i]));
-			bool b2;
-			#pragma omp critical
-			{
-				b2 = helper3.insert(helper).second;
-			}
-
-			if (b2)
-			{
 				double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 				long thisfocpos = 0;
-				bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr[i]);
+				bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr2[i]);
 				if (b3)
 				{
 					#pragma omp critical
@@ -1189,11 +1226,10 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 							*focpos = thisfocpos;
 							slope = thisslope;
 							intercept = thisintercept;
-							indices2 = arr[i];
+							indices2 = arr2[i];
 						}
 					}
 				}
-			}
 		}
 #endif
 	}
@@ -1217,20 +1253,37 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		{
 			std::unordered_set<std::vector<bool>> helper3;
 			valarray<valarray<bool>> arr(number_of_attempts);
+			valarray<valarray<bool>> arr2(number_of_attempts);
 			for (size_t i = 0; i < number_of_attempts; i++)
 			{
 				shuffle(std::begin(indices), std::end(indices), urng);
 				arr[i] = indices;
 			}
-
+			size_t count2 = 0;
 #if __cplusplus == 201703L
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
-					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method);
-				});
-			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
-				{
+					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
+					if (b1)
+					{
+						std::vector<bool> helper(pointnumber);
+						helper.assign(std::begin(arri), std::end(arri));
+						bool b2;
+						mtx.lock();
+						b2 = helper3.insert(helper).second;
+						if (b2)
+						{
+							arr2[count2] = arri;
+							count2++;
+						}
+						mtx.unlock();
+					}
 					counter1++;
+				});
+
+			std::for_each(std::execution::par, std::begin(arr2), std::begin(arr2)+count2, [&](valarray<bool>& arri)
+				{
+	
 					std::vector<bool> helper;
 					helper.assign(std::begin(arri), std::end(arri));
 					bool b2;
@@ -1263,28 +1316,33 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			#pragma omp parallel for
 			for (long i = 0; i < number_of_attempts; i++)
 			{
-				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method);
-			}
-
-			#pragma omp parallel for
-			for (long i = 0; i < number_of_attempts; i++)
-			{
+				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
 				#pragma omp atomic
 				counter1++;
 
-				std::vector<bool> helper;
-				helper.assign(std::begin(arr[i]), std::end(arr[i]));
-				bool b2;
-				#pragma omp critical
+				if (b1)
 				{
-					b2 = helper3.insert(helper).second;
+					std::vector<bool> helper(pointnumber);
+					helper.assign(std::begin(arr[i]), std::end(arr[i]));
+					bool b2;
+					#pragma omp critical
+					{
+						b2 = helper3.insert(helper).second;
+						if (b2)
+						{
+							arr2[count2] = arr[i];
+							count2++;
+						}
+					}
 				}
+			}
 
-				if (b2)
-				{
+			#pragma omp parallel for
+			for (long i = 0; i < count2; i++)
+			{
 					double thiserr = DBL_MAX, thisslope = 0, thisintercept = 0;
 					long thisfocpos = 0;
-					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr[i]);
+					bool b3 = Search_min_error(&xv, &line_yv, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &thisfocpos, use_median_regression, &arr2[i]);
 					if (b3)
 					{
 						#pragma omp critical
@@ -1295,12 +1353,11 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 								*focpos = thisfocpos;
 								slope = thisslope;
 								intercept = thisintercept;
-								indices2 = arr[i];
+								indices2 = arr2[i];
 								counter1 = 0;
 							}
 						}
 					}
-				}
 			}
 #endif
 
