@@ -118,7 +118,7 @@ inline double MAD_estimator(valarray<double>* err, double* m, size_t s, size_t s
 inline double onestepbiweightmidvariance(valarray<double>* err, double* median, size_t s, size_t shalf);
 inline double T_estimator(valarray<double>* err, size_t s);
 
-
+//Computes the standard deviation stdev and the average *average from an array *errs, espects the size of the array s
 inline void stdeviation(valarray<double>* errs, double* stdev, double* average, size_t s)
 {
 	double sum = 0, devi = 0, t = 0;
@@ -140,6 +140,7 @@ inline void stdeviation(valarray<double>* errs, double* stdev, double* average, 
 	}
 }
 
+// Computes the median of an array. Expects the size of the array and half of the size.
 inline double median(valarray<double>* arr, size_t n, size_t nhalf)
 {
 
@@ -164,7 +165,7 @@ inline double median(valarray<double>* arr, size_t n, size_t nhalf)
 	return med;
 }
 
-
+// computes the lower median of an array. expects the size of the array and half of the size.
 inline double lowmedian(valarray<double>* arr, size_t n)
 {
 	size_t m = (size_t)(floor(((double)n + 1.0) / 2.0) - 1.0);
@@ -177,7 +178,10 @@ inline double lowmedian(valarray<double>* arr, size_t n)
 	return (double)(*arr)[m];
 }
 
-
+// computes the fit of an array of points (x, line_y) to a hyperbola.
+//  The minimum should lie between minfocus and maxfocus and is found to be at *focpos. it also returns the intercept and slope parameters as defined in the header.
+// it accepts a use_median_regression parameter which, if true, will lead to a robust fit with Siegel's median slope. It also wants a boolean array usepoints that can mask certain points to be excluded from the fit.
+// if the use_median_regression parameter is false, a linear regression published by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998  is used.
 inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, long* focpos, double* fintercept, double* fslope, bool use_median_regression, valarray<bool>* usepoint)
 {
 	*ferr = DBL_MAX;
@@ -191,6 +195,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y
 
 	if (use_median_regression)
 	{
+		//use Siegel's median slope with a naive algorithm
 
 		valarray<double> stacks2(usedpoints);
 		valarray<double> stacks1(usedpoints - 1);
@@ -199,7 +204,7 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y
 
 		valarray<double> stacki1(usedpoints);
 
-
+		//for each possible focus point run siegel's median slope to fit a hyperbola. return the hyperbola that has a minimum such that it has the smallest error.
 		for (long h = minfocus; h <= maxfocus; h++)
 		{
 			for (size_t i = 0; i < usedpoints; i++)
@@ -251,12 +256,15 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y
 	}
 	else
 	{
+		//make a linear regression fit for the hyperbola
+
 		double sumy = 0;
 		for (size_t n = 0; n < usedpoints; n++)
 		{
 			sumy += line_y2[n];
 		}
 
+		//for each possible focus position, fit a hyperbola. return the hyperbola with the focus position that has the smallest error to the points 
 		for (long h = minfocus; h <= maxfocus; h++)
 		{
 			double sumx = 0, sumxy = 0, sumxx = 0;
@@ -298,11 +306,13 @@ inline bool regression(double* ferr, valarray<long>* x, valarray<double>* line_y
 			}
 		}
 	}
+
 	*ferr = *ferr /(double) usedpoints;
 	return true;
 }
 
-
+//starts the regression function and ensures that if the minimum point of the hyperbola is close to minfocus or maxfocus, the regression is started again on an enlarged area at the side close to minfocus or maxfocus. The size of this area
+//is determined by the scale parameter.
 inline bool Search_min_error(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, double* err, double* fintercept, double* fslope, long* focpos, bool use_median_regression, valarray<bool>* indicestouse)
 {
 
@@ -355,7 +365,7 @@ inline bool Search_min_error(valarray<long>* x, valarray<double>* line_y, long m
 	return true;
 }
 
-
+//computes the factorial
 _inline double factorial(size_t n)
 {
 	double ret = 1.00;
@@ -364,6 +374,8 @@ _inline double factorial(size_t n)
 	return ret;
 }
 
+//helper function for student's t distribution 
+//from the algorithm in Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
 _inline double H(double y, size_t nu)
 {
 	double sum = 0;
@@ -374,6 +386,9 @@ _inline double H(double y, size_t nu)
 	}
 	return y / (2 * sqrt((double)nu)) * sum;
 }
+
+//helper function for student's t distribution from the algorithm in
+// Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
 _inline double G(double y, size_t nu)
 {
 	double sum = 0;
@@ -383,13 +398,15 @@ _inline double G(double y, size_t nu)
 	}
 	return sum;
 }
+//computes the cotangent
 inline double cot(double x)
 {
 	return  cos(x) / sin(x);
 }
 
 
-
+//computes the student t distribution from the algorithm in
+// // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
 inline double t(double alpha, size_t nu)
 {
 	const double PI = 3.14159265358979323846;
@@ -416,13 +433,14 @@ inline double t(double alpha, size_t nu)
 		return zeta1;
 	}
 }
-
+//computes the critical values of the student t distribution
 inline double crit(double alpha, size_t N)
 {
 	double temp = pow(t(alpha / (2.0 * (double)N), N - 2), 2.0);
 	return ((double)N - 1.0) / sqrt((double)N) * sqrt(temp / ((double)N - 2.0 + temp));
 }
 
+//computes the peirce criterion for a given pointnumber with a given number of outliers and a number of fitting parameters
 inline double peirce(size_t pointnumber, size_t numberofoutliers, size_t fittingparameters)
 {
 	double n = (double)numberofoutliers, N = (double)pointnumber, p = (double)fittingparameters;
@@ -449,7 +467,7 @@ inline double peirce(size_t pointnumber, size_t numberofoutliers, size_t fitting
 	return xa;
 }
 
-
+//computes the binominal coeffocient n choose k
 inline size_t binominal(size_t n, size_t k)
 {
 	if (k == 0)
@@ -476,6 +494,9 @@ inline size_t binominal(size_t n, size_t k)
 	}
 }
 
+//computes the Q estimator of an array of values with a naive algorithm. The array should have a size of s
+// The q estimator was published in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
 inline double Q_estimator(valarray<double>* err, size_t s)
 {
 	valarray<double> t1(binominal(s, 2));
@@ -517,10 +538,12 @@ inline double Q_estimator(valarray<double>* err, size_t s)
 		}
 	}
 	return cc * 2.2219 * t1[k];
-
-
-
 }
+
+//computes the S estimator of an array of values with size s with a naive algorithm.
+// The S estimator was published in
+// Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
 
 inline double S_estimator(valarray<double>* err, size_t s)
 {
@@ -560,6 +583,7 @@ inline double S_estimator(valarray<double>* err, size_t s)
 	return (c * 1.1926 * lowmedian(&m1, s));
 }
 
+//Computes the MAD estimator of an array and its median of values. The array should have a size size s, and a size/2 shalf 
 inline double MAD_estimator(valarray<double>* err, double* m, size_t s, size_t shalf)
 {
 	*m = median(err, s, shalf);
@@ -582,6 +606,9 @@ inline double MAD_estimator(valarray<double>* err, double* m, size_t s, size_t s
 	return  c * 1.4826 * median(&m1, s, shalf);
 }
 
+// Computes the biweightmidvariance of an array in one iteration. It also returns the median. It expects the size of the array and half the size of the array
+// The biweight midvariance estimator  was described in 
+// T. C. Beers,K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
 inline double onestepbiweightmidvariance(valarray<double>* err, double* median, size_t s, size_t shalf)
 {
 	double mad = MAD_estimator(err, median, s, shalf);
@@ -606,7 +633,9 @@ inline double onestepbiweightmidvariance(valarray<double>* err, double* median, 
 
 
 
-
+//computes the T estimator for a array of size s. 
+// The T estimator was described in Peter J. Rousseeuw, Christophe Croux, Alternatives to the Median-Absolute Deviation
+// J. of the Amer. Statistical Assoc. (Theory and Methods), 88 (1993),p. 1273,
 inline double T_estimator(valarray<double>* err, size_t s)
 {
 
@@ -641,28 +670,42 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	return  (1.38 / ((double)h)) * w;
 }
+
+
+//expects a set of points with coordinates in (x,line_y), a boolean mask usedpoint which has values true for the indices in x and line_y to use for the fit. Then the function searches for the best hyperbolic fit
+//with a minimum between minfocus and maxfocus, where the interval may be extended if the scale parameter is larger than 1. 
+// the function then searches for points for which the usedpoint mask was set to false, that may be nevertheless included in the fit. It dpes this by comparing the errors of these points with supplied estimators and tolerance parameters
+//the function then returns the modified mask.
 inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, valarray<bool>* usedpoint, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method,size_t pointnumber,size_t pointnumberhalf)
 {
 	long this_focpos=0;
 	double thiserr=DBL_MAX, thisslope=0.0, thisintercept=0.0;
+//makes a fit with the initial usedpoint array as a mask
 	if (!Search_min_error(x, line_y, minfocus, maxfocus, scale, &thiserr, &thisintercept, &thisslope, &this_focpos, use_median_regression, usedpoint))
 	{
 		return false;
 	}
+
 	vector<maybe_inliner> mp;
 	mp.reserve(pointnumber);
 
 	valarray<double>err(pointnumber);
 	valarray<double>err_sqr(pointnumber);
 
+	//makes a loop over all points
 	for (size_t p = 0; p < pointnumber; p++)
 	{
+		
 		double xh = ((double)(*x)[p] - (double)this_focpos);
 		xh *= xh;
+		//measures the error between the initial fit and point p
 		double z = fabs(thisslope * xh +thisintercept) - (*line_y)[p];
 
+		//store the error and the squared error
 		err[p] = z;
 		err_sqr[p] = z * z;
+
+		//if point p is removed by the mask, add it as a maybe inlier
 		if (!(*usedpoint)[p])
 		{
 			maybe_inliner o;
@@ -672,10 +715,12 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 		}
 	}
 
+	//if we have maybe inliers
 	if (mp.size() > 0)
 	{
 		double m = 0, MAD = 0, average = 0, stdev = 0, S = 0, Q = 0, T = 0, biweightmidvariance = 0;
 
+		//compute the user selected estimator for all the errors
 		switch (rejection_method)
 		{
 		case tolerance_multiplies_standard_deviation_of_error:
@@ -723,11 +768,13 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 		}
 		}
 
-
+		//loop through the maybe inliers 
 		for (size_t j = 0; j < mp.size(); j++)
 		{
+			//assume a point j is not an outlier
 			bool isoutlier = false;
 
+			// check if point j is within the bounds for an inlier with respect to the user selected estimator. If not, call it an outlier
 			switch (rejection_method)
 			{
 			case tolerance_is_maximum_squared_error:
@@ -813,7 +860,7 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 				break;
 			}
 			}
-		
+		//if point j is an inlier, modify the usedpoint bitmask
 				if (isoutlier)
 				{
 					(*usedpoint)[mp[j].point] = false;
@@ -827,6 +874,7 @@ inline bool findmodel(valarray<long>* x, valarray<double>* line_y, long minfocus
 	return true;
 }
 
+//the function which is exported by the library. It uses the ransac to compute a hyperbolic fit where it selects points as inliers and outliers. The documentation is provided in the header file.
 
 bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error, double* main_slope, double* main_intercept,
 	vector<size_t>* indices_of_used_points,
@@ -834,6 +882,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	double stop_after_seconds, size_t stop_after_numberofiterations_without_improvement, long backslash, double scale, bool use_median_regression,
 	size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance)
 {
+	//test if garbage data was supplied.
 	if (focpos == NULL)
 	{
 		return false;
@@ -843,11 +892,12 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		return false;
 	}
 
+	//set some often used variables
 	size_t pointnumber = x.size();
 	size_t pointnumberhalf = pointnumber / 2;
-
 	size_t minimummodelsize = pointnumber - maximum_number_of_outliers;
 
+	//make the supplied parameters consistent with each other in case there is a problem
 	if (maximum_number_of_outliers == 0)
 	{
 		rejection_method = no_rejection;
@@ -859,13 +909,14 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		minimummodelsize = pointnumber;
 	}
 
+	//ensure, we fit at least 4 points
 	if (minimummodelsize < 4)
 	{
 		minimummodelsize = 4;
 		maximum_number_of_outliers = pointnumber - minimummodelsize;
 	}
 
-
+	//test for a useless tolerance parameter with the Grubbs estimator
 	if (rejection_method == tolerance_is_significance_in_Grubbs_test)
 	{
 		if (tolerance >= 0.9)
@@ -881,9 +932,9 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	valarray<bool> indices2(pointnumber);
 	valarray<double>line_yv(pointnumber);
 
+	//set an initial bitmask, square the hfd values since we fit a hyperbola as a line where the hfd is squared, find the minimum and maximum focus value
 	for (size_t i = 0; i < pointnumber; i++)
 	{
-
 		if (i < maximum_number_of_outliers)
 		{
 			indices[i] = (false);
@@ -903,17 +954,19 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		}
 	}
 
+	//check if garbage data was supplied
 	if (maxfocus - minfocus == 0)
 		return false;
 
 
 	double  error = DBL_MAX, intercept = 0, slope = 0, additionaldata = 0;
 
-
+	//generate additional data for the Peirce criterion
 	if (rejection_method == use_peirce_criterion)
 	{
 		additionaldata = peirce(pointnumber, maximum_number_of_outliers, 3);
 	}
+	//generate additional data for the Grubbs test
 	if (rejection_method == tolerance_is_significance_in_Grubbs_test)
 	{
 		additionaldata = crit(tolerance, pointnumber);
@@ -922,29 +975,32 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 
 	valarray <long> xv(x.data(), x.size());
 
-
+	//how many computations do we have to make based on the minimum fit model size
 	size_t numbercomp = binominal(pointnumber, maximum_number_of_outliers);
+
 
 #if __cplusplus == 201703L
 	std::mutex mtx;
 #endif
 	
 
-
+	//set some number of computations which should be distributed on several processors 
 	const size_t number_of_attempts = 705432;
 
 
-
+	//check if the supplied stop_after_numberofiterations_without_improvement was too small
 	if (stop_after_numberofiterations_without_improvement < number_of_attempts)
 	{
 		stop_after_numberofiterations_without_improvement = number_of_attempts;
 	}
 
+	//if we have only a small number of computations to make
 	if (numbercomp <= number_of_attempts)
 	{
 		std::unordered_set<std::vector<bool>> helper3;
 		vector<valarray<bool>> arr(numbercomp);
 		vector<valarray<bool>> arr2(numbercomp);
+		//generate possible bitmasks
 		for (size_t i = 0; i < numbercomp; i++)
 		{
 			arr[i] = indices;
@@ -952,6 +1008,14 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		}
 
 	   size_t count2 = 0;
+	   // the following code differs a bit in the syntax, if open-mp or C++17 is used. But the function is the same.
+	   // for each initial bitmask, call findmodel to fit the points to the bitmask and the bitmask if additional points need to be included.
+	   // copy the bitmask to a vector, which has a hash function and insert it to a list in which all bitmasks are inserted. If the insertion was successfull, the bitmask is new
+	   // it is then inserted into an array arr2 of different bitmasks.
+	   // increase the count of different bitmasks that were found
+	   // Let the initial error be at DBL_MAX.
+	   // then make a loop over the different final bitmasks we have found and make a curve fit for them. 
+	   // Store the parameters of the model if it has a smaller error than the model before.
 #if __cplusplus == 201703L
 		
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
@@ -1036,10 +1100,14 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		}
 #endif
 	}
+	//if the number of possible bitmasks is just smaller than 100* number_of_attempts
 	else if (numbercomp <= number_of_attempts * 100)
 	{
+		
 		size_t p =(size_t) numbercomp/number_of_attempts;
 		
+		//make the same procedure as in the case with the smaller point number, but for p times. I.e. after the work was distributed to the processors start with another cycle and distribute again with
+		// different bitmasks
 		for (size_t o = 0; o < p; o++)
 		{
 			std::unordered_set<std::vector<bool>> helper3;
@@ -1050,6 +1118,16 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				arr[i] = indices;
 				std::next_permutation(std::begin(indices), std::end(indices));
 			}
+
+			// the following code differs a bit in the syntax, if open-mp or C++17 is used. But the function is the same.
+			// for each initial bitmask, call findmodel to fit the points to the bitmask and the bitmask if additional points need to be included.
+			// copy the bitmask to a vector, which has a hash function and insert it to a list in which all bitmasks are inserted. If the insertion was successfull, the bitmask is new
+			// it is then inserted into an array arr2 of different bitmasks.
+			// increase the count of different bitmasks that were found
+			// Let the initial error be at DBL_MAX.
+			// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
+			// Store the parameters of the model if it has a smaller error than the model before.
+
 			size_t count2 = 0;
 #if __cplusplus == 201703L
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
@@ -1141,15 +1219,27 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		vector<valarray<bool>> arr(s);
 		vector<valarray<bool>> arr2(s);
 
+		//now distribute the work one last time for the remaining number of bitmasks.
 		for (size_t i = 0; i < s; i++)
 		{
 			arr[i] = indices;
 			std::next_permutation(std::begin(indices), std::end(indices));
 		}
-		size_t count2 = 0;
-#if __cplusplus == 201703L
-		
 
+
+
+
+		size_t count2 = 0;
+
+		// the following code differs a bit in the syntax, if open-mp or C++17 is used. But the function is the same.
+		// for each initial bitmask, call findmodel to fit the points to the bitmask and the bitmask if additional points need to be included.
+		// copy the bitmask to a vector, which has a hash function and insert it to a list in which all bitmasks are inserted. If the insertion was successfull, the bitmask is new
+		// it is then inserted into an array arr2 of different bitmasks.
+		// increase the count of different bitmasks that were found
+		// Let the initial error be at DBL_MAX.
+		// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
+		// Store the parameters of the model if it has a smaller error than the model before.
+#if __cplusplus == 201703L
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
 				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method,pointnumber,pointnumberhalf);
@@ -1237,6 +1327,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	
 	else
 	{
+	//we have too many points. So we start a true, non-deterministic ransac.
 		std::random_device rng;
 		std::mt19937 urng(rng());
 		double seconds = 0;
@@ -1251,6 +1342,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 
 		do
 		{
+			//generate number_of_attempts random bitmasks and the helper structures
 			std::unordered_set<std::vector<bool>> helper3;
 			valarray<valarray<bool>> arr(number_of_attempts);
 			valarray<valarray<bool>> arr2(number_of_attempts);
@@ -1260,6 +1352,15 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 				arr[i] = indices;
 			}
 			size_t count2 = 0;
+
+			// the following code differs a bit in the syntax, if open-mp or C++17 is used. But the function is the same.
+			// for each initial bitmask, call findmodel to fit the points to the bitmask and the bitmask if additional points need to be included.
+			// copy the bitmask to a vector, which has a hash function and insert it to a list in which all bitmasks are inserted. If the insertion was successfull, the bitmask is new
+			// it is then inserted into an array arr2 of different bitmasks.
+			// increase the count of different bitmasks that were found
+			// Let the initial error be at DBL_MAX.
+			// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
+			// Store the parameters of the model if it has a smaller error than the model before.
 #if __cplusplus == 201703L
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
@@ -1278,6 +1379,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 						}
 						mtx.unlock();
 					}
+					//for each model we tried, increase counter1 by 1.
 					counter1++;
 				});
 
@@ -1305,6 +1407,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 								*focpos = thisfocpos;
 								slope = thisslope;
 								intercept = thisintercept;
+								//if we had found a better model set counter 1 =0
 								counter1 = 0;
 								indices2 = arri;
 							}
@@ -1317,6 +1420,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			for (long i = 0; i < number_of_attempts; i++)
 			{
 				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arr[i], tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
+				//for each model we tried to find increase counter1 by 1
 				#pragma omp atomic
 				counter1++;
 
@@ -1354,13 +1458,14 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 								slope = thisslope;
 								intercept = thisintercept;
 								indices2 = arr2[i];
+								//if we had found a better model set the counter 1 to zero
 								counter1 = 0;
 							}
 						}
 					}
 			}
 #endif
-
+			//if we had not found a better model after some user specified number of tries, stop the algorithm
 			if (counter1 >= stop_after_numberofiterations_without_improvement)
 			{
 				break;
@@ -1368,17 +1473,20 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			seconds = elapsed_seconds.count();
+			//after the time specified by the user has passed, stop the algorithm
 		} while (seconds < fabs(stop_after_seconds));
 	}
 	
-
+	//if we had not found a good model return false
 	if (error == DBL_MAX)
 	{
 		return false;
 	}
 
+	//correct the minimum focus for the user supplied backslash
 	*focpos += backslash;
 
+	//return the other parameters if specified
 	if (main_error != NULL)
 	{
 		*main_error = error;
@@ -1394,6 +1502,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		*main_intercept = intercept;
 	}
 
+	//clear the arrays that were supplied as pointers to fill in return data.
 	if (indices_of_removedpoints != NULL)
 	{
 		(*indices_of_removedpoints).clear();
@@ -1424,7 +1533,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		(*removedpoints_line_y).clear();
 	}
 
-
+	//fill in the return data for the indices of the used points and the coordinates of the fitted model in various formats (as a line and as a hyperbola).
 	for (size_t k = 0; k < pointnumber; k++)
 	{
 		if (indices2[k])
@@ -1475,6 +1584,9 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 }
 
 
+//the function is exported by the library. It starts 2 hyperbolic fits from 2 point sets and computes the difference between the minima of the hyperbolas. 
+//The documentation of this function is provided in the header file.
+
 bool findbackslash_Regression(long* backslash,
 	vector<long> x1, vector<double> y1, vector<long> x2, vector<double> y2, double* main_error1, double* main_slope1, double* main_intercept1, vector<size_t>* indicesofusedpoints1,
 	vector<double>* used_points1_line_x, vector<double>* used_points1_line_y, vector<size_t>* indicesofremovedpoints1, vector<double>* removedpoints1_line_x, vector<double>* removedpoints1_line_y,
@@ -1483,23 +1595,26 @@ bool findbackslash_Regression(long* backslash,
 	double stop_after_seconds, size_t stop_after_numberofiterations_without_improvement, double scale, bool use_median_regression,
 	size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance)
 {
+
 	if (backslash == NULL)
 	{
 		return false;
 	}
 
 	long focpos1 = 0, focpos2 = 0;
-	if (focusposition_Regression(x1, y1, &focpos1, main_error1, main_slope1, main_intercept1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y, stop_after_seconds,
-		stop_after_numberofiterations_without_improvement, 0, scale, use_median_regression, maximum_number_of_outliers, rejection_method, tolerance) == false)
+	//make the first fit;
+	if (!focusposition_Regression(x1, y1, &focpos1, main_error1, main_slope1, main_intercept1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y, stop_after_seconds,
+		stop_after_numberofiterations_without_improvement, 0, scale, use_median_regression, maximum_number_of_outliers, rejection_method, tolerance))
 	{
 		return false;
 	}
-
-	if (focusposition_Regression(x2, y2, &focpos2, main_error2, main_slope2, main_intercept2, indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y, stop_after_seconds,
-		stop_after_numberofiterations_without_improvement, 0, scale, use_median_regression, maximum_number_of_outliers, rejection_method, tolerance) == false)
-		*backslash = focpos2 - focpos1;
+	//make the second fit;
+	if (!focusposition_Regression(x2, y2, &focpos2, main_error2, main_slope2, main_intercept2, indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y, stop_after_seconds,
+		stop_after_numberofiterations_without_improvement, 0, scale, use_median_regression, maximum_number_of_outliers, rejection_method, tolerance))
+	{
+		return false;
+	}
+	//return the computed backslash
+	*backslash = focpos2 - focpos1;
 	return true;
 }
-
-
-
