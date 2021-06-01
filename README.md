@@ -17,6 +17,8 @@ https://github.com/bschulz81/hyperbolicfitdll/blob/main/53454535453.JPG
 
 https://github.com/bschulz81/hyperbolicfitdll/blob/main/focustest4550.JPG
 
+https://github.com/bschulz81/hyperbolicfitdll/blob/main/554345353453.JPG
+
 They show that the functions provided in this software appear to make correct decisions on the exclusion of certain data points as outliers in various and very different situations. 
 
 
