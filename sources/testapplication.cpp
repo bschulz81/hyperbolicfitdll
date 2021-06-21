@@ -61,10 +61,10 @@ void attempt2(vector<long> xv, vector<double> yv, double scale, size_t numberofp
 	std::cout << mainerror << endl;
 
 	std::cout << "Hyperbola parameters y=sqrt(slope (x-bestfocus)^2+intercept)" << endl;
-	std::cout << "b^2*d:   ";
+	std::cout << "intercept   ";
 	std::cout << mainintercept << endl;
 
-	std::cout << "b^2/a^2:  ";
+	std::cout << "slope ";
 	std::cout << mainslope << endl << endl;
 
 
@@ -135,10 +135,10 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << "from linear regression" << endl;
 	std::cout << mainerror1 << endl;
 	std::cout << "Hyperbola parameters y=sqrt(slope (x-bestfocus)^2+intercept)" << endl;
-	std::cout << "b^2*d:   ";
+	std::cout << "intercept   ";
 	std::cout << mainintercept1 << endl;
 
-	std::cout << "b^2/a^2:  ";
+	std::cout << "slope  ";
 	std::cout << mainslope1 << endl << endl;
 
 	start = std::chrono::steady_clock::now();
