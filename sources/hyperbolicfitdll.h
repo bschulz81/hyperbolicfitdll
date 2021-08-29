@@ -83,7 +83,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// This ia the header file that should be used by external programs which call the library. 
+// This is the header file that should be used by external programs which call the library. 
 #pragma once
 
 #ifdef APTHYPERBOLICFITDLL_EXPORTS
