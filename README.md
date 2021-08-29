@@ -1,5 +1,7 @@
 # hyperbolicfitdll
-  This is an open source library that can help to autofocus telescopes. The library contains 2 functions. One (the earlier one) fits half flux diameter data to a hyperbola, 
+  This is an open source library that can help to autofocus telescopes.
+  
+ The library contains 2 functions. One (the earlier one) fits half flux diameter data to a hyperbola, 
  from which the correct focus point can be 
  interpolated. This function has no image analysis, which a third party program must provide on its own.
 
@@ -7,15 +9,16 @@
  The image data is then analyzed in fourier space. A function is provided that takes a vector of image classes constructed from several images
  and fits it to a parabola. From this, the correct focus point can be determined.
 
- The library is currently used in preview version of the software Astro Photography tool (APT) for the autofocus routine.
+ The library is currently used in recent versions of the software Astro Photography tool (APT) for the autofocus routine.
 
- A test applications are provided. FM.exe expects a folder with fits files that are defocused at
+ A test applications are provided. FM.exe expects a fold er with fits files that are defocused at
  various levels as an argument along with some other parameters. From this the correct focus point is then interpolated with robust statistics.
 
- The source code is provided in the folder /sources.
- An x64 version of the dll is provided in the /binaries folder.
- In the binaries folder, there is also a folder with a binary the test application together with the necessary c++ runtime dll's from 
- Microsoft Visual Studio, opencv and libfitsio that the application needs to run.
+ The source code of the dll and two test applications that use it is provided in the folder /sources.
+ In order to compile the source files of the dll, they must be compiled and linked to open-cv and libfitsio. 
+ If the language is C++14, it also needs open-mp.
+
+ The test applications must just be compiled and linked to libfitsio. 
 
 
  The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. 
