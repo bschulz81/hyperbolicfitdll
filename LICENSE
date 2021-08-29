@@ -5,7 +5,9 @@
 // the development of a parallelized RANSAC inspired algorithm that can removes outlier data in the function "focusposition_Regression",
 // the implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
 // the implementation of various known outlier detection methods within the RANSAC 
-// (MAD, S, Q, and T, biweight-midvariance estimators), Grubb's test for outliers, Peirce's criterion
+// (MAD, S, Q, and T, biweight-midvariance estimators, Grubb's test for outliers, Peirce's criterion, percentage based midvariance)
+// the implementation of the image ananysis algorithm developed by the user C.Y. Tan with the help of opencv and libfitsio libraries. The algorithm generates a power spectrum in fourier 
+// space which can be used in the curve fitting library for determining the focus point.
 
 // <Stephen King> 
 // Responsible for:
@@ -18,10 +20,14 @@
 // the algorithm idea for "findbackslash_Regression", first suggested in
 // https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265 
 
-// The user <cytan>  
+// <C.Y. Tan>  
 // Responsible for:
+// The development of the algorithm that analyzes the image data via Fourier transform in the function image::fouriertransform. 
+// Its output can be fed into a slightly modified curve fitting algorithm.
 // The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
 // (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
+
+// The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
 
 // The library makes use of an algorithm for student's distribution, which can be found at
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
@@ -57,6 +63,7 @@
 // A recent version of this software can be downloaded at
 //
 // https://github.com/bschulz81/hyperbolicfitdll/ 
+
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
