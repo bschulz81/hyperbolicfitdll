@@ -5,7 +5,9 @@
 // the development of a parallelized RANSAC inspired algorithm that can removes outlier data in the function "focusposition_Regression",
 // the implementation of a repeated median regression in the function "focusposition_Regression" instead of a simple regression,
 // the implementation of various known outlier detection methods within the RANSAC 
-// (MAD, S, Q, and T, biweight-midvariance estimators), Grubb's test for outliers, Peirce's criterion
+// (MAD, S, Q, and T, biweight-midvariance estimators, Grubb's test for outliers, Peirce's criterion, percentage based midvariance)
+// the implementation of the image ananysis algorithm developed by the user C.Y. Tan with the help of opencv and libfitsio libraries. The algorithm generates a power spectrum in fourier 
+// space which can be used in the curve fitting library for determining the focus point.
 
 // <Stephen King> 
 // Responsible for:
@@ -18,10 +20,14 @@
 // the algorithm idea for "findbackslash_Regression", first suggested in
 // https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265 
 
-// The user <cytan>  
+// <C.Y. Tan>  
 // Responsible for:
+// The development of the algorithm that analyzes the image data via Fourier transform in the function image::fouriertransform. 
+// Its output can be fed into a slightly modified curve fitting algorithm.
 // The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
 // (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
+
+// The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
 
 // The library makes use of an algorithm for student's distribution, which can be found at
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
@@ -58,6 +64,7 @@
 //
 // https://github.com/bschulz81/hyperbolicfitdll/ 
 
+
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
@@ -75,6 +82,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
+// This ia the header file that should be used by external programs which call the library. 
 #pragma once
 
 #ifdef APTHYPERBOLICFITDLL_EXPORTS
@@ -84,9 +93,23 @@
 #endif
 
 using namespace std;
-// The function focusposition_Regression interpolates the optimal focuser position from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes a linear regression with a least square 
-// error comparison. If specified, the RANSAC can also use repeaded median regression.
-// The algorithm for the linear regression that is used by the RANSAC was first published by Stephen King (username STEVE333), at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998
+#include "fitsio.h"
+
+#include <string> 
+#include <vector>
+// The function focusposition_Regression is only there for compatibility reasons.
+
+// By now, it is replaced by the function focusposition_Regression2. The image class contains code for image analysis  in fourier space. From a vector of these
+// classes, focusposition_Regression2 can interpolate the motor value of the focus point of a telescope.
+
+// In contrast to this new method, focusposition_Regression needs hfd values from another image analysis to interpolates 
+// the optimal focuser position. However, both focusposition_Regression2 and focusposition_Regression have very similar parameters and 
+// they function in an essentially similar way. So we begin the introduction of these functions with the old focusposition_Regression.
+
+// focusposition_Regression interpolates the focus point from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes 
+// a linear regression with a least square error comparison. If specified, the RANSAC can also use repeaded median regression.
+// The algorithm for the linear regression that is used by the RANSAC was first published by Stephen King (username STEVE333),
+// at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998
 
 // focusposition_Regression expects the following arguments:
 
@@ -119,13 +142,13 @@ using namespace std;
 // if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fit with the added point is then made and the process is repeated with another initial combination of points.
 // The algorithm works in parallel with several threads. So it benefits from processors with multiple cores.
 // 
-// The initial combination is selected randomly if the binominal coefficient of the number of points n and the number of outliers k (n choose k) is larger than 100*(22 choose 11) = 70543200. Otherwise, the combinations are searched deterministically.
+// The initial combination is selected randomly if the binomial coefficient of the number of points n and the number of outliers k (n choose k) is larger than 100*(22 choose 11) = 70543200. Otherwise, the combinations are searched deterministically.
 // 
 // stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
 // stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 // 
-// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binominal coefficient n choose k is larger than 100*(22 choose 11) == 70543200.
+// The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binomial coefficient n choose k is larger than 100*(22 choose 11) == 70543200.
 
 
 // backslash is a parameter that can contain the focuser backslash in steps. The best focus position is corrected with respect to this backslash. If you already have taken account of
@@ -149,7 +172,7 @@ using namespace std;
 
 
 // rejection_method  is a parameter that specifies the method which is used to reject outliers.
-// Assume you have n datapoints. The algorithm works by searching through either all or (if the binominal coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
+// Assume you have n datapoints. The algorithm works by searching through either all or (if the binomial coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
 // of m=n - maximum_number_of_outliers points.
 // 
 // 
@@ -210,9 +233,9 @@ using namespace std;
 // rejection_method==tolerance_is_decision_in_S_ESTIMATION, or  
 // rejection_method==tolerance_is_decision_in_Q_ESTIMATION, or
 // rejection_method==tolerance_is_decision_in_T_ESTIMATION, 
+// rejection_method==tolerance_is_percentagebased_midvariance, 
 
-
-// then, MAD, biweight_midvariance, S, Q or T estimators are used. 
+// then, MAD, biweight_midvariance, S, Q, T or percentage based midvariance estimators are used. 
 
 // A point is then added to a minimal combination if
 
@@ -228,7 +251,7 @@ using namespace std;
 // The library also can make use of the biweight midvariance estimator that was described in 
 // T. C. Beers, K. Flynn and K. Gebhardt,  Astron. J. 100 (1),32 (1990)
 
-// if MAD, S, Q, T estimators or biweight midvariance estimators are used. the tolerance parameter should be around 2...3.
+// if MAD, S, Q, T estimators, biweight midvariance estimators are used, the tolerance parameter should be around 2...3.
 
 
 // if 
@@ -256,6 +279,7 @@ using namespace std;
  
 // The function returns false on error and true if it is successful.
 
+
 typedef enum
 {
 	no_rejection,
@@ -267,16 +291,109 @@ typedef enum
 	tolerance_is_decision_in_Q_ESTIMATION,
 	tolerance_is_decision_in_T_ESTIMATION,
 	use_peirce_criterion,
-	tolerance_is_biweight_midvariance
+	tolerance_is_biweight_midvariance,
+	tolerance_is_percentagebased_midvariance
 }outlier_criterion;
 
-HYPERBOLICFIT_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
+extern "C" HYPERBOLICFIT_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
 	vector<size_t>* indices_of_used_points = NULL,
 	vector<double>* usedpoints_line_x = NULL, vector<double>* usedpoints_line_y = NULL, vector<size_t>* indices_of_removedpoints = NULL, vector<double>* removedpoints_line_x = NULL, vector<double>* removedpoints_line_y = NULL,
 	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, long backslash = 0, double scale = 1.5, bool use_median_regression = false,
-	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method= tolerance_multiplies_standard_deviation_of_error, double tolerance = 3);
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
 
-// The function findbackslash finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
+
+
+// this class contains code that is used for analyzing the images.
+
+
+class HYPERBOLICFIT_API image
+{
+public:
+	// constructs the image class from a fits file given by filename. The focuser position of the image is either supplied as a
+	// parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	// When the constructor is called, one either has to supply the focuser position of the given fits file as an argument or
+	// the constructor attempts to  read the focuser position from the fits file.
+	//In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
+   // Keywords: FOCUSPOS, FOCUSERPOS, FOCUSERPOSITION, FOCUSPOSITION, FOCUSMOTORPOSITION, FOCUSMOTORPOS
+	image(string* filename, long focuser_position = LONG_MIN, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	// constructs the image class from a fits file object. The focuser position of the image is either supplied as a
+	// parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	// When the constructor is called, one either has to supply the focuser position of the given fits file as an argument or
+	// the constructor attempts to  read the focuser position from the fits file.
+	//In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
+   // Keywords: FOCUSPOS, FOCUSERPOS, FOCUSERPOSITION, FOCUSPOSITION, FOCUSMOTORPOSITION, FOCUSMOTORPOS
+	image(fitsfile* fptr, long focuser_position = LONG_MIN, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+
+	//constructs the image class from a double array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <double>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	//constructs the image class from a float array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <float>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	//constructs the image class from a long long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <long long>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	// constructs the image class from a long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <long>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	// constructs the image class from a short array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <short>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	// constructs the image class from an int8_t array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+	// by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <int8_t>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+
+	//returns the power of an image in fourier mode.
+	double invpower();
+
+	//returns the focuser position of the image class
+	long focuser_position();
+
+	// returns the hfd that can be supplied by the user in the constructor(note that this value is not used in the algorithms, but can be stored as an option, for applications which
+	// have their own hdf analysis algorithm.)
+	double hfd();
+
+	// returns the fwhm (note that this value is not used in the algorithms, but can be stored as an option, for applications which
+	// have their own hdf analysis algorithm.)
+	double fwhm();
+
+	//returns the pstatus variable. status=0 means the image class was successfully constructed.
+	int status();
+private:
+	int pstatus;
+	long pfocuser_position;
+	double phfd;
+	double pfwhm;
+	double pinvpower;
+	double fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2);
+	double datafilling0(fitsfile* fptr, long focuser_position = LONG_MIN);
+};
+
+// focusposition_Regression2 computes the focus point from a vector of validly constructed image classes which must all have status 0.
+// these image classes can be constructed from a path to a fits file, a fits file structure, or an array with image data. The constructor
+// then computes the power spectrum, with which focusposition_Regression2 can work.
+// The parameters of focusposition_Regression2 are similar as in focusposition_Regression: double* main_slope, double* main_intercept 
+// are the slope and intercept for the functions invpower=slope(x-focus_point)^2+intercept, where invpower is the given by the invpower 
+// method if x is the focus motor position of an image class. ínvpower is the inverse of the power function from the fourier analysis. 
+// Currently, the parameter theta is not used. The parameters from focusposition_Regression where the fitted curve is returned
+// in a coordinate system where it is represented by a line are omitted. 
+
+extern "C" HYPERBOLICFIT_API bool focusposition_Regression2(vector<image>* images, long* focpos, double* main_error, double* main_slope, double* main_intercept, double* theta,
+	vector<size_t>* indices_of_used_points, vector<size_t>* indices_of_removedpoints, double stop_after_seconds=60, size_t stop_after_numberofiterations_without_improvement= 2000000, long backslash=0, double scale=1.0, bool use_median_regression=false,
+	size_t maximum_number_of_outliers=3, outlier_criterion rejection_method= tolerance_is_decision_in_S_ESTIMATION, double tolerance=3);
+
+
+
+// The function findbackslash_Regression finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
 // The idea to correct for the backslash in this way was first published by Jim Hunt (username JST200) at https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265
 
 // The function expects 2 data sets of motor positions x1 and x2 and hfd values y1 and y2. The function then calls focusposition_Regression and makes a curve fit for both sets.
@@ -296,5 +413,13 @@ extern "C" HYPERBOLICFIT_API bool findbackslash_Regression(long* backslash,
 	vector<double>*used_points1_line_x=NULL, vector<double>*used_points1_line_y=NULL, vector<size_t>*indicesofremovedpoints1=NULL, vector<double>*removedpoints1_line_x=NULL, vector<double>*removedpoints1_line_y=NULL,
 	double* main_error2=NULL, double* main_slope2=NULL, double* main_intercept2=NULL, vector<size_t>*indicesofusedpoints2 = NULL,
 	vector<double>*used_points2_line_x=NULL, vector<double>*used_points2_line_y=NULL, vector<size_t>*indicesofremovedpoints2=NULL, vector<double>*removedpoints2_line_x=NULL, vector<double>*removedpoints2_line_y=NULL,
-	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.5, bool use_median_regression = false,
-	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_multiplies_standard_deviation_of_error, double tolerance = 2);
+	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.5 ,bool use_median_regression = false,
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
+
+// The function findbackslash_Regression2 finds the focuser backslash from two interpolations of the best focus positions. In contrast to findbackslash_Regression, it accepts 2 vectors of image classes from 2 consecutive measurements where the 
+// focus motor moved in different directions. The parameter theta is currently not used.
+extern "C" HYPERBOLICFIT_API bool findbackslash_Regression2(long* backslash,
+	vector<image>*images1, vector<image>*images2, double* main_error1 = NULL, double* main_slope1 = NULL, double* main_intercept1 = NULL, vector<size_t>*indicesofusedpoints1 = NULL, vector<size_t>*indicesofremovedpoints1 = NULL, 
+	double* main_error2 = NULL, double* main_slope2 = NULL, double* main_intercept2 = NULL, double* theta1=NULL, double* theta2=NULL, vector<size_t>*indicesofusedpoints2 = NULL, vector<size_t>*indicesofremovedpoints2 = NULL, 
+	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.0, bool use_median_regression = false,
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
