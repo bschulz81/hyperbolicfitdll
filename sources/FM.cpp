@@ -332,6 +332,7 @@ int main(int argc, char** argv)
 			cout << "BIWEIGHT_MIDVARIANCE or 9 This means that the biweight midvariance estimator is used and the tolerance is the cut-off in |squared_error-average_squared_error|/biweight-midvariance(squared_errors)<=tolerance" << endl;
 			cout << "PERCENTAGE_BASED_MIDVARIANCE or 10 This means that the percentage-based midvariance estimator is used and the tolerance is the cut-off in |squared_error-average_squared_error|/percentage_based_midvariance(squared_errors)<=tolerance" << endl;
 			cout << "For example a basic usage of this program may be FM.exe -d Path_To_my_fits_files -info 3 -e ALL -w This would analyze the fits files in the given directory. It will make several curve fits for most of the estimators available in the library and write the results into a file." << endl;
+			return 0;
 			break;
 		}
 		if (((string)argv[i] == "-w") || ((string)argv[i] == "--Write_to_file"))
