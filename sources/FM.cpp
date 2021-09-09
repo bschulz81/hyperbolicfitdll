@@ -77,7 +77,7 @@
 #include "hyperbolicfitdll.h"
 
 using namespace std;
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 
 inline size_t binominal(size_t n, size_t k);
