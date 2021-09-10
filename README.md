@@ -10,13 +10,16 @@
 
  The library is currently used in preview version of the software Astro Photography tool (APT) for the autofocus routine.
 
- A test applications are provided. FM.exe expects a folder with fits files that are defocused at
- various levels as an argument along with some other parameters. From this the correct focus point is then interpolated with robust statistics.
+ Two test applications are provided. 
+ 
+ FM.exe expects a folder with fits files that are defocused at various levels as an argument along with some other parameters. From this the correct focus point is then  interpolated with robust statistics and extensive information on the quality of the data is provided.
+ 
+ HFDM.exe has no image analysis. It can compute the focus point from hfd data of defocused images from starfields. If no own hfd data is provided, HFDM will analze HFD data from some historical observations. More and more artificial outliers are added to the data and the user can compare how the different statistical methods behave in the presence of more and more outliers.
+ 
 
  The source code is provided in the folder /sources.
- An x64 version of the dll is provided in the /binaries folder.
- In the binaries folder, there is also a folder with a binary the test application together with the necessary c++ runtime dll's from 
- Microsoft Visual Studio, opencv and libfitsio that the application needs to run.
+ A setup for windows is provided in the /binaries folder.
+
 
 
  The library uses a RANSAC algorithm that selects various combinations of the input data for either a linear regression or a repeated median fit. 
