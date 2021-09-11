@@ -421,7 +421,8 @@ int main()
 		attempt(xv12, yv12, scale, 13, 7, tolerance, &seconds);
 		
 		cout << endl;
-
+		cout << "time used" << endl;
+		cout << seconds << endl;
 	}
 	else
 	{
@@ -545,10 +546,11 @@ int main()
 		std::cout << endl;
 
 		attempt(xv, yv,scale, datapointnumber, outliers, tolerance,&seconds);
+		cout << "time used" << endl;
+		cout << seconds << endl;
 	}
 
-	cout << "time used" << endl;
-	cout << time << endl;
+
 
 
 	cout << "press key to end ";

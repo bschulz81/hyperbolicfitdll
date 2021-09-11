@@ -84,17 +84,14 @@
 // SOFTWARE.
 
 // This ia the header file that should be used by external programs which call the library. 
-#pragma once
 
-#ifdef FOCUSINTERPOLATIONLIBRARY_EXPORTS
-#define FOCUSINTERPOLATION_API __declspec(dllexport)
-#else
-#define FOCUSINTERPOLATION_API __declspec(dllimport)
-#endif
+
+#pragma once
+#include "focusinterpolation_exports.h"
+
 
 using namespace std;
 #include "fitsio.h"
-
 #include <string> 
 #include <vector>
 // The function focusposition_Regression is only there for compatibility reasons.
@@ -383,7 +380,7 @@ private:
 // then computes the power spectrum, with which focusposition_Regression2 can work.
 // The parameters of focusposition_Regression2 are similar as in focusposition_Regression: double* main_slope, double* main_intercept 
 // are the slope and intercept for the functions invpower=slope(x-focus_point)^2+intercept, where invpower is the given by the invpower 
-// method if x is the focus motor position of an image class. Ã­nvpower is the inverse of the power function from the fourier analysis. 
+// method if x is the focus motor position of an image class. ínvpower is the inverse of the power function from the fourier analysis. 
 // Currently, the parameter theta is not used. The parameters from focusposition_Regression where the fitted curve is returned
 // in a coordinate system where it is represented by a line are omitted. 
 

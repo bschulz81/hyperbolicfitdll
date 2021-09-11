@@ -81,15 +81,15 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
+#include "focusinterpolation.h"
 #include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
 #include <vector>
 #include <chrono>
 #include <algorithm>
-#include "fitsio.h"
 
-#include "focusinterpolation.h"
+
+
 #include <random>  
 #include <valarray>
 #include <atomic>

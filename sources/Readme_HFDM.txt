@@ -1,5 +1,12 @@
 // HFDM.exe is a small program can be used to determine the focus point of a telescope from
-// a small series of defocused images. HFDM does, however, not have an own image analysis, in contrast to FM.exe
+// a small series of defocused images. 
+
+// A CMakeLists.txt file is provided in the sources folder. In order to compile HFDM and the library, 
+// one has to change the paths for Open-CV and libfitsio headers and libraries at the places
+// where it is written in the comments of CMakeLists.txt.
+
+// HFDM does, not have an own image analysis, in contrast to FM.exe, which can analyze fits files on its own.
+
 // HFDM.exe needs half flux diameter data from a small series of images of a star field where each of the images has to be 
 // defocused to a different degree.
 // HFDM.exe  can either fit historical hfd data from some previous  observations, or the user can put in
