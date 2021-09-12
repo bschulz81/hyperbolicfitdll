@@ -1861,7 +1861,7 @@ double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dim
 	if (p4 != NULL)
 	{
 		//compute the dft of the image
-		Mat I(dimension2, dimension1, CV_32F, (*p4).data());
+		Mat I( dimension2, dimension1, CV_32F, (*p4).data());
 
 		Mat planes[] = { Mat_<float>(I), Mat::zeros(I.size(), 5) };
 		Mat complexI;
@@ -1929,123 +1929,123 @@ double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dim
 
 }
 
-//constructs the image class from a double array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from a double array.Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<double> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<double> * imagedata, double hfd, double fwhm)
 {
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <= 2)
+	if (width <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <= 2)
+	if (height <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() ==0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1 * dimension2) != imagedata->size())
+	if ((width * height) != imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
 	}
-	pinvpower=fouriertransform(NULL, imagedata, dimension1, dimension2);
+	pinvpower=fouriertransform(NULL, imagedata, width, height);
 }
-//constructs the image class from a float array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from a float array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<float> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<float> * imagedata, double hfd, double fwhm)
 {
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <= 2)
+	if (width <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <= 2)
+	if (height <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() == 0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1*dimension2)!= imagedata->size())
+	if ((width * height)!= imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
 	}
-	pinvpower = fouriertransform(imagedata, NULL, dimension1, dimension2);
+	pinvpower = fouriertransform(imagedata, NULL, width, height);
 }
-//constructs the image class from a long long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from a long long array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<long long> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<long long> * imagedata, double hfd, double fwhm)
 {
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <= 2)
+	if (width <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <= 2)
+	if (height <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() == 0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1 * dimension2) != imagedata->size())
+	if ((width * height) != imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
 	}
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	pinvpower = fouriertransform(&floatvec, NULL, dimension1, dimension2);
+	pinvpower = fouriertransform(&floatvec, NULL, width, height);
 }
-//constructs the image class from a long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from a long array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<long> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<long> * imagedata, double hfd, double fwhm)
 {
 
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <=2)
+	if (width <=2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <=2)
+	if (height <=2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() == 0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1 * dimension2) != imagedata->size())
+	if ((width * height) != imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
@@ -2053,32 +2053,32 @@ image::image(size_t dimension1, size_t dimension2, long focuser_position, vector
 
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	pinvpower = fouriertransform(&floatvec, NULL, dimension1, dimension2);
+	pinvpower = fouriertransform(&floatvec, NULL, width, height);
 }
-//constructs the image class from a short array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from a short array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<short> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<short> * imagedata, double hfd, double fwhm)
 {
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <= 2)
+	if (width <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <= 2)
+	if (height <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() == 0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1 * dimension2) != imagedata->size())
+	if ((width * height) != imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
@@ -2086,33 +2086,33 @@ image::image(size_t dimension1, size_t dimension2, long focuser_position, vector
 
 	
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	pinvpower = fouriertransform(&floatvec, NULL, dimension1, dimension2);
+	pinvpower = fouriertransform(&floatvec, NULL, width, height);
 }
-//constructs the image class from an int8_t array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+//constructs the image class from an int8_t array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
 // by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
-image::image(size_t dimension1, size_t dimension2, long focuser_position, vector<int8_t> * imagedata, double hfd, double fwhm)
+image::image(size_t width, size_t height, long focuser_position, vector<int8_t> * imagedata, double hfd, double fwhm)
 {
 
 	pstatus = 0;
 	pfocuser_position = focuser_position;
 	phfd = hfd;
 	pfwhm = fwhm;
-	if (dimension1 <= 2)
+	if (width <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension1 was <=2");
+		throw std::invalid_argument("width was <=2");
 	}
-	if (dimension2 <= 2)
+	if (height <= 2)
 	{
 		pstatus = -1;
-		throw std::invalid_argument("dimension2 was <=2");
+		throw std::invalid_argument("height was <=2");
 	}
 	if (imagedata->size() == 0)
 	{
 		pstatus = -1;
 		throw std::invalid_argument("no image data");
 	}
-	if ((dimension1 * dimension2) != imagedata->size())
+	if ((width * height) != imagedata->size())
 	{
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
@@ -2120,7 +2120,7 @@ image::image(size_t dimension1, size_t dimension2, long focuser_position, vector
 
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	pinvpower = fouriertransform(&floatvec, NULL, dimension1, dimension2);
+	pinvpower = fouriertransform(&floatvec, NULL, width, height);
 }
 
 //computes the focus point from a vector of validly constructed image classes which must all have status 0.
