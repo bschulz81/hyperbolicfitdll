@@ -162,35 +162,91 @@ the parameters main_slope1, main_intercept1, indicesofusedpoints1, used_points1_
 
 The parameters stop_after_seconds, stop_after_numberofiterations_without_improvement, maximum_number_of_outliers, tolerance, scale, use_median_regression, use_median_regression have the same meaning as the corresponding parameters in focusposition_Regression and are used for the fits of both datasets.
 
-The class image contains the code for image analysis. It has the following constructors:
 
-image::image(string* filename, long focuser_position = LONG_MIN, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a fits file given by filename. The focuser position of the image is either supplied as a parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-image::image(fitsfile* fptr, long focuser_position, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a fits file object. The focuser position of the image is either supplied as a parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-image::image(size_t width, size_t height, long focuser_position, vector * imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a double array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+The class image contains the code for image analysis. It has the following constructors and functions:
 
-image::image(size_t width, size_t height, long focuser_position, vector * imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a float array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-image::image(size_t width, size_t height, long focuser_position, vector * imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a long long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+image(string* filename, long focuser_position = LONG_MIN, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a fits file given by filename. The focuser position of the image is either supplied as a
+parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+When the constructor is called, one either has to supply the focuser position of the given fits file as an argument or
+the constructor attempts to  read the focuser position from the fits file.
+In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
+Keywords: FOCUSPOS, FOCUSERPOS, FOCUSERPOSITION, FOCUSPOSITION, FOCUSMOTORPOSITION, FOCUSMOTORPOS
+	
+  
+  	image(fitsfile* fptr, long focuser_position = LONG_MIN, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a fits file object. The focuser position of the image is either supplied as a
+parameter or read from the fits file. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+When the constructor is called, one either has to supply the focuser position of the given fits file as an argument or
+the constructor attempts to  read the focuser position from the fits file.
+In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
+Keywords: FOCUSPOS, FOCUSERPOS, FOCUSERPOSITION, FOCUSPOSITION, FOCUSMOTORPOSITION, FOCUSMOTORPOS
 
-image::image(size_t width, size_t height, long focuser_position, vector * imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a long array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-image::image(size_t width, size_t height, long focuser_position, vector * imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from a short array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <double>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a double array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-image::image(size_t width, size_t height, long focuser_position, vector <int8_t>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN); constructs the image class from an int8_t array. dimension2 is the height, dimension1 the width of the image. The focuser position of the image must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-double image::invpower();
-returns the inverse power of an image in fourier mode. This is the data that is fitted to a parabola.
+constructs the image class from a float array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+	image(size_t width, size_t height, long focuser_position, vector <float>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
 
-long image::focuser_position(); returns the focuser position of the image class
 
-double image::hfd(); returns the hfd that can be supplied by the user in the constructor(note that this value is not used in the algorithms, but can be stored as an option, for applications which have their own hdf analysis algorithm.)
+	image(size_t width, size_t height, long focuser_position, vector <long long>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a long long array. Width and height are the width and height of the image.. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
 
-double image::fwhm(); returns the fwhm (note that this value is not used in the algorithms, but can be stored as an option, for applications which have their own hdf analysis algorithm.)
 
-int image::status(); returns the pstatus variable. status=0 means the image class was successfully constructed.
 
+	image(size_t width, size_t height, long focuser_position, vector <long>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a long array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+
+
+
+	image(size_t width, size_t height, long focuser_position, vector <short>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from a short array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+
+
+
+	image(size_t width, size_t height, long focuser_position, vector <int8_t>* imagedata, double hfd = DBL_MIN, double fwhm = DBL_MIN);
+constructs the image class from an int8_t array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
+by the curve fitting procedures. But they may be supplied by applications with an own image analysis.
+
+
+
+	double invpower();
+returns the power of an image in fourier mode.
+
+	long focuser_position();
+returns the focuser position of the image class
+
+
+
+	double hfd();
+returns the hfd that can be supplied by the user in the constructor(note that this value is not used in the algorithms, but can be stored as an option, for applications which
+have their own hdf analysis algorithm.)
+
+
+
+	double fwhm();
+returns the fwhm (note that this value is not used in the algorithms, but can be stored as an option, for applications which
+have their own hdf analysis algorithm.)
+
+
+	int status();
+returns the pstatus variable. status()==0 means the image class was successfully constructed.
+
+  
+  
+  
 extern "C" FOCUSINTERPOLATION_API bool focusposition_Regression2(vector* images, long* focpos, double* main_error, double* main_slope, double* main_intercept, double* theta, vector<size_t>* indices_of_used_points, vector<size_t>* indices_of_removedpoints, double stop_after_seconds, size_t stop_after_numberofiterations_without_improvement, long backslash, double scale, bool use_median_regression, size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance);
 
 focusposition_Regression2 computes the focus point from a vector of validly constructed image classes which must all have status 0. these image classes can be constructed from a path to a fits file, a fits file structure, or an array with image data. The constructor then computes the power spectrum, with which focusposition_Regression2 can work. The parameters of focusposition_Regression2 are similar as in focusposition_Regression: double* main_slope, double* main_intercept are the slope and intercept for the functions invpower=slope(x-focus_point)^2+intercept, where invpower is the given by the invpower method if x is the focus motor position of an image class. ínvpower is the inverse of the power function from the fourier analysis. Currently, the parameter theta is not used. The parameters from focusposition_Regression where the fitted curve is returned in a coordinate system where it is represented by a line are omitted.
