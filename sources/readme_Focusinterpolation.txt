@@ -163,8 +163,6 @@ the parameters main_slope1, main_intercept1, indicesofusedpoints1, used_points1_
 The parameters stop_after_seconds, stop_after_numberofiterations_without_improvement, maximum_number_of_outliers, tolerance, scale, use_median_regression, use_median_regression have the same meaning as the corresponding parameters in focusposition_Regression and are used for the fits of both datasets.
 
 
-
-
 The class image contains the code for image analysis. It has the following constructors and functions:
 
 
@@ -244,8 +242,6 @@ have their own hdf analysis algorithm.)
 	int status();
 returns the pstatus variable. status()==0 means the image class was successfully constructed.
 
-  
-  
   
 extern "C" FOCUSINTERPOLATION_API bool focusposition_Regression2(vector* images, long* focpos, double* main_error, double* main_slope, double* main_intercept, double* theta, vector<size_t>* indices_of_used_points, vector<size_t>* indices_of_removedpoints, double stop_after_seconds, size_t stop_after_numberofiterations_without_improvement, long backslash, double scale, bool use_median_regression, size_t maximum_number_of_outliers, outlier_criterion rejection_method, double tolerance);
 
