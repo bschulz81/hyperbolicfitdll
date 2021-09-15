@@ -17,6 +17,8 @@ In this folder, a CMakeLists.txt file can also be found.
 
 In order to compile the test applications and the library, one has to change the paths for Open-CV and libfitsio headers and libraries at the places
 where it is written in the comments in the CMakeLists.txt file.
+Then one has to go into a console window. Change the currend directlory to the directory where the sources are found.
+Finally type "cmake ." followed by "make" which should compile the application.
 
 A setup for windows is provided in the /binaries folder. The windows setup installs the binaries of the test applications and the source of the libraries.
 
