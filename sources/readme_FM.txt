@@ -28,6 +28,8 @@
 // A CMakeLists.txt file is provided in the sources folder. In order to compile FM and the library, 
 // one has to change the paths for Open-CV and libfitsio headers and libraries at the places
 // where it is written in the comments of the CMakeLists.txt.
+// Then one has to go into a console window. Change the currend directlory to the directory where the sources are found.
+// Finally type "cmake ." followed by "make" which should compile the application.
 
 // In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
 // Keywords: FOCUSPOS,FOCUSERPOS,FOCUSERPOSITION,FOCUSPOSITION,FOCUSMOTORPOSITION,FOCUSMOTORPOS

@@ -260,7 +260,7 @@ void attempt(vector<image>* imv, double scale, size_t outliers, double tolerance
 int main(int argc, char** argv)
 {
 	string directorypath;
-	long outliers1 = -LONG_MIN;
+	long outliers1 = LONG_MIN;
 	double tolerance = 3.0;
 	outlier_criterion estimator = tolerance_is_decision_in_S_ESTIMATION;
 

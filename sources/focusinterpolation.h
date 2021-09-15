@@ -89,6 +89,9 @@
 #pragma once
 #include "focusinterpolation_exports.h"
 
+#ifdef UNIXOID
+  #include <float.h>
+#endif
 
 using namespace std;
 #include "fitsio.h"

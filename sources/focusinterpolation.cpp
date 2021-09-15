@@ -105,6 +105,10 @@ using namespace cv;
 #include <omp.h>
 #endif
 
+#ifdef UNIXOID
+  #define _inline inline
+#endif
+
 struct maybe_inliner
 {
 	size_t point;
@@ -159,7 +163,7 @@ inline void stdeviation(valarray<double>* errs, double* stdev, double* average, 
 inline double median(valarray<double>* arr, size_t n, size_t nhalf)
 {
 
-#if __cplusplus == 201703L
+#if (__cplusplus == 201703L) && !defined(MACOSX)
 	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr) + n);
 #else
 	nth_element(std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr) + n);
@@ -169,7 +173,7 @@ inline double median(valarray<double>* arr, size_t n, size_t nhalf)
 	double  med = (*arr)[nhalf];
 	if (n % 2 == 0)
 	{
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 		auto max_it = max_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf);
 #else
 		auto max_it = max_element(std::begin(*arr), std::begin(*arr) + nhalf);
@@ -185,7 +189,7 @@ inline double lowmedian(valarray<double>* arr, size_t n)
 {
 	size_t m = (size_t)(floor(((double)n + 1.0) / 2.0) - 1.0);
 
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + m, std::begin(*arr) + n);
 #else
 	nth_element(std::begin(*arr), std::begin(*arr) + m, std::begin(*arr) + n);
@@ -382,7 +386,7 @@ inline bool Search_min_error(valarray<long>* x, valarray<double>* line_y, long m
 }
 
 //computes the factorial
-_inline double factorial(size_t n)
+inline double factorial(size_t n)
 {
 	double ret = 1.00;
 	for (size_t i = 2; i <= n; ++i)
@@ -392,7 +396,7 @@ _inline double factorial(size_t n)
 
 //helper function for student's t distribution 
 //from the algorithm in Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
-_inline double H(double y, size_t nu)
+inline double H(double y, size_t nu)
 {
 	double sum = 0;
 
@@ -405,7 +409,7 @@ _inline double H(double y, size_t nu)
 
 //helper function for student's t distribution from the algorithm in
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
-_inline double G(double y, size_t nu)
+inline double G(double y, size_t nu)
 {
 	double sum = 0;
 	for (size_t j = 0; j <= nu / 2 - 1; j++)
@@ -529,7 +533,7 @@ inline double Q_estimator(valarray<double>* err, size_t s)
 	size_t h = s / 2 + 1;
 	size_t k = binomial(h, 2) - 1;
 
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 	std::nth_element(std::execution::par, std::begin(t1), std::begin(t1) + k, std::end(t1));
 #else
 	std::nth_element(std::begin(t1), std::begin(t1) + k, std::end(t1));
@@ -699,7 +703,7 @@ inline double T_estimator(valarray<double>* err, size_t s)
 	}
 	size_t h = s / 2 + 1;
 	double w = 0;
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 	sort(std::execution::par, std::begin(med1), std::end(med1));
 #else
 	sort(std::begin(med1), std::end(med1));
@@ -1036,7 +1040,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 	size_t numbercomp = binomial(pointnumber, maximum_number_of_outliers);
 
 
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L 
 	std::mutex mtx;
 #endif
 
@@ -1073,7 +1077,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		// Let the initial error be at DBL_MAX.
 		// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 		// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
@@ -1186,7 +1190,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			// Store the parameters of the model if it has a smaller error than the model before.
 
 			size_t count2 = 0;
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
 					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
@@ -1296,7 +1300,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		// Let the initial error be at DBL_MAX.
 		// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 		// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
 				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
@@ -1389,7 +1393,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 		std::mt19937 urng(rng());
 		double seconds = 0;
 
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L 
 		std::atomic<int> counter1{ 0 };
 #else
 		size_t counter1 = 0;
@@ -1418,7 +1422,7 @@ bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, do
 			// Let the initial error be at DBL_MAX.
 			// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 			// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
 					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
@@ -2278,7 +2282,7 @@ bool focusposition_Regression2(std::vector<image>* images, long* focpos, double*
 		// Let the initial error be at DBL_MAX.
 		// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 		// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
@@ -2391,7 +2395,7 @@ bool focusposition_Regression2(std::vector<image>* images, long* focpos, double*
 			// Store the parameters of the model if it has a smaller error than the model before.
 
 			size_t count2 = 0;
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
 					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
@@ -2501,7 +2505,7 @@ bool focusposition_Regression2(std::vector<image>* images, long* focpos, double*
 		// Let the initial error be at DBL_MAX.
 		// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 		// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 		std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 			{
 				bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);
@@ -2623,7 +2627,7 @@ bool focusposition_Regression2(std::vector<image>* images, long* focpos, double*
 			// Let the initial error be at DBL_MAX.
 			// then make a loop over the different final bitmasks we have found and make a curve fit for them. 
 			// Store the parameters of the model if it has a smaller error than the model before.
-#if __cplusplus == 201703L
+#if __cplusplus == 201703L && !defined(MACOSX)
 			std::for_each(std::execution::par, std::begin(arr), std::end(arr), [&](valarray<bool>& arri)
 				{
 					bool b1 = findmodel(&xv, &line_yv, minfocus, maxfocus, scale, &arri, tolerance, additionaldata, use_median_regression, rejection_method, pointnumber, pointnumberhalf);

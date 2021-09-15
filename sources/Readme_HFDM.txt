@@ -4,6 +4,8 @@
 // A CMakeLists.txt file is provided in the sources folder. In order to compile HFDM and the library, 
 // one has to change the paths for Open-CV and libfitsio headers and libraries at the places
 // where it is written in the comments of CMakeLists.txt.
+// Then one has to go into a console window. Change the currend directlory to the directory where the sources are found.
+// Finally type "cmake ." followed by "make" which should compile the application.
 
 // HFDM does, not have an own image analysis, in contrast to FM.exe, which can analyze fits files on its own.
 
