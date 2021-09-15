@@ -47,6 +47,11 @@ if (${UNIX})
     add_definitions(-DUNIXOID)
 endif()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+    add_definitions(-DMACOSX)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
