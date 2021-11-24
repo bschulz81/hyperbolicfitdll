@@ -8,6 +8,11 @@
 // (MAD, S, Q, and T, biweight-midvariance estimators, Grubb's test for outliers, Peirce's criterion, percentage based midvariance)
 // the implementation of the image ananysis algorithm developed by the user C.Y. Tan with the help of opencv and libfitsio libraries. The algorithm generates a power spectrum in fourier 
 // space which can be used in the curve fitting library for determining the focus point.
+// implementation of a Levenberg-Marquardt algorithm in order to fit the fourier data to higher precision
+// implementation of robust curve fitting options where the the curve fit is made with all points but the loss function is either 
+// linearized to (abs(err)) or set to zero for outliers.
+
+
 
 // <Stephen King> 
 // Responsible for:
@@ -26,6 +31,7 @@
 // Its output can be fed into a slightly modified curve fitting algorithm.
 // The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
 // (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
+// responsible for data taking and various tests of the fourier analysis algorithm
 
 // The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
 
@@ -56,6 +62,13 @@
 // In practice, repeated median regression is a rather slow fitting method. 
 // If median regression is not used, the RANSAC will use a faster linear regression algorithm for the 
 // hyperbolic fit which was provided by Stephen King at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998).
+
+// In order to increase the precision of the fit of fourier data, the library has the ability to use a Levenberg-Marquardt algorithm.
+// Extensive information about the Levenberg-Marquardt algorithm and some techniques used by this application in order to improve convergence can be found in
+// Transtrum, Mark K; Sethna, James P(2012). "Improvements to the Levenberg-Marquardt algorithm for nonlinear least-squares minimization".arXiv:1201.5885
+
+
+
 
 // See 
 // https://aptforum.com/phpbb/viewtopic.php?p=26587#p26587 for the early development history of this software. 
@@ -89,14 +102,49 @@
 #pragma once
 #include "focusinterpolation_exports.h"
 
-#ifdef UNIXOID
-  #include <float.h>
-#endif
 
 using namespace std;
-#include "fitsio.h"
+
+#include <float.h>
+#include <fitsio.h>
 #include <string> 
 #include <vector>
+
+
+typedef enum
+{
+	no_rejection,
+	Least_trimmed_squares_tolerance_is_maximum_squared_error,
+	Least_trimmed_squares_tolerance_multiplies_standard_deviation_of_error,
+	Least_trimmed_squares_tolerance_is_significance_in_Grubbs_test,
+	Least_trimmed_squares_tolerance_is_decision_in_MAD_ESTIMATION,
+	Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION,
+	Least_trimmed_squares_tolerance_is_decision_in_Q_ESTIMATION,
+	Least_trimmed_squares_tolerance_is_decision_in_T_ESTIMATION,
+	Least_trimmed_squares_use_peirce_criterion,
+	Least_trimmed_squares_tolerance_is_biweight_midvariance,
+	errorfunction_vanishing_tolerance_is_maximum_squared_error,
+	errorfunction_vanishing_tolerance_multiplies_standard_deviation_of_error,
+	errorfunction_vanishing_tolerance_is_significance_in_Grubbs_test,
+	errorfunction_vanishing_tolerance_is_decision_in_MAD_ESTIMATION,
+	errorfunction_vanishing_tolerance_is_decision_in_S_ESTIMATION,
+	errorfunction_vanishing_tolerance_is_decision_in_Q_ESTIMATION,
+	errorfunction_vanishing_tolerance_is_decision_in_T_ESTIMATION,
+	errorfunction_vanishing_use_peirce_criterion,
+	errorfunction_vanishing_tolerance_is_biweight_midvariance,
+	errorfunction_linear_tolerance_is_maximum_squared_error,
+	errorfunction_linear_tolerance_multiplies_standard_deviation_of_error,
+	errorfunction_linear_tolerance_is_significance_in_Grubbs_test,
+	errorfunction_linear_tolerance_is_decision_in_MAD_ESTIMATION,
+	errorfunction_linear_tolerance_is_decision_in_S_ESTIMATION,
+	errorfunction_linear_tolerance_is_decision_in_Q_ESTIMATION,
+	errorfunction_linear_tolerance_is_decision_in_T_ESTIMATION,
+	errorfunction_linear_use_peirce_criterion,
+	errorfunction_linear_tolerance_is_biweight_midvariance,
+	errorfunction_linear_tolerance_is_percentagebased_midvariance
+}outlier_criterion;
+
+
 // The function focusposition_Regression is only there for compatibility reasons.
 
 // By now, it is replaced by the function focusposition_Regression2. The image class contains code for image analysis  in fourier space. From a vector of these
@@ -104,11 +152,13 @@ using namespace std;
 
 // In contrast to this new method, focusposition_Regression needs hfd values from another image analysis to interpolates 
 // the optimal focuser position. However, both focusposition_Regression2 and focusposition_Regression have very similar parameters and 
-// they function in an essentially similar way. So we begin the introduction of these functions with the old focusposition_Regression.
+// they function in an essentially similar way.
 
-// focusposition_Regression interpolates the focus point from a fit with symmetric hyperbolas based on a RANSAC algorithm that utilizes 
-// a linear regression with a least square error comparison. If specified, the RANSAC can also use repeaded median regression.
-// The algorithm for the linear regression that is used by the RANSAC was first published by Stephen King (username STEVE333),
+// So we begin the introduction of these functions with the old focusposition_Regression.
+
+// focusposition_Regression interpolates the focus point from a fit with symmetric hyperbolas. It has the ability to solve the trimmed least squares problem
+// in order to remove outliers. If specified, it can also use repeaded median regression.
+// The algorithm for the linear regression was first published by Stephen King (username STEVE333),
 // at https://aptforum.com/phpbb/viewtopic.php?p=25998#p25998
 
 // focusposition_Regression expects the following arguments:
@@ -138,14 +188,9 @@ using namespace std;
 // in the coordinate system where the hyperbola is a line. One can plot them together with the line  given by Y=slope*(x-focpos)^2+intercept
 
 
-// The algorithm works by first selecting combination of points and fitting them to a hyperbola. This initial hyperbola is then corrected with contributions from other points. A point outside a combination is added
-// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. A new fit with the added point is then made and the process is repeated with another initial combination of points.
-// The algorithm works in parallel with several threads. So it benefits from processors with multiple cores.
-// 
-// The initial combination is selected randomly if the binomial coefficient of the number of points n and the number of outliers k (n choose k) is larger than 100*(22 choose 11) = 70543200. Otherwise, the combinations are searched deterministically.
-// 
-// stop_after_seconds is a parameter that stops the RANSAC after a given time in seconds has elapsed.
-// stop_after_numberofiterations_without_improvement is a parameter that lets the RANSAC stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
+
+// stop_after_seconds is a parameter that stops the algorithm after a given time in seconds has elapsed.
+// stop_after_numberofiterations_without_improvement is a parameter that lets the algorithm stop after it has iterated by stop_after_numberofiterations_without_improvement iterations
 // without a further improvement of the error. Note that this parameter is not the iteration number, but it is the number of iterations without further improvement.
 // 
 // The parameters stop_after_seconds and stop_after_numberofiterations_without_improvement are only used if the binomial coefficient n choose k is larger than 100*(22 choose 11) == 70543200.
@@ -157,6 +202,7 @@ using namespace std;
 
 // scale is a parameter of the type double that specifies the size of the interval of motor positions where the best focusposition is searched for. 
 // The default of scale is 1.
+// 
 // Sometimes, the focus point may be outside of the interval of motor positions where the hfd was measured.
 // let  middle =(max + min) / 2 and max and min be the maximum and minimum motorposition where a hfd was measured.
 // If an initial search finds the best focus point within 10 positions to be at the right edge of the measurement interval of motor positions,
@@ -168,17 +214,28 @@ using namespace std;
 // use_median_regression is a parameter that specifies whether the RANSAC uses a simple linear regression or a median regression.
 // Repeated median regression is slightly more stable against small outliers if one does not use the RANSAC algorithm.
 
-// maximum_number_of_outliers is a parameter that specifies how many outliers the ransac can maximally throw away.
-
 
 // rejection_method  is a parameter that specifies the method which is used to reject outliers.
+// 
+// The library can solve the least trimmed squares problem. If such an estimator is selected, the application behaves as follows:
+// 
+// maximum_number_of_outliers is a parameter that specifies how many outliers the ransac can maximally throw away.
+
+// The algorithm works by first selecting combination of points and fitting them to a hyperbola. 
+
+// 
 // Assume you have n datapoints. The algorithm works by searching through either all or (if the binomial coefficient of points over the number of outliers is larger than 20 over 10) randomly generated so - called minimal combinations
 // of m=n - maximum_number_of_outliers points.
 // 
+// An initial fit for a hyperbola is made with these m selected points.  
 // 
-// The algorithm searches for the best combination of points with the lowest error, based on linear regression, or repeated median regression.
-// For each minimal combination, the points outside of this minimal set of m points are considered. 
-
+// Afterwards, this initial hyperbola is then corrected by contributions from other points. A point outside a combination m is added
+// if its error from the initial fit is deemed not to be an outlier based on various statistical methods. 
+// 
+// A new fit with the added point is then made and the process is repeated with another initial combination of points until the best combination had been found.
+// The algorithm works in parallel with several threads. So it benefits from processors with multiple cores.
+// // 
+// 
 // The error between the fit w of a minimal combination and a measurement at a motor position x is given by err_p=p(x)-w(x) where w is the squared hfd at x. 
 
 // If
@@ -186,13 +243,13 @@ using namespace std;
 // rejection_method==no_rejection, then the function uses every point for the fit.
 
 
-// rejection_method==tolerance_is_maximum_squared_error, 
+// rejection_method==Least_trimmed_squares_tolerance_is_maximum_squared_error, 
 
 // then a point p outside of the  minimal combination are only added to the final fit if its squared error  err_p*err_p fulfills
 
 // err_p*err_p<=abs(tolerance).
 
-// The RANSAC then computes an overall fit with this combination, and then constructs a new set based on a different minimal mode, until the best combination of points was found. 
+// The algorithm  then computes an overall fit with this combination, and then constructs a new set based on a different minimal mode, until the best combination of points was found. 
 
 // To specify the tolerable error directly is useful if the largest tolerable error is known, e.g. from a measurement of the seeing. By taking a series of images, 
 // an application may measure the random deviation of the hfd from the average that stars have. With outlier detection methods, one can remove the outliers of large amplitudes.
@@ -202,7 +259,7 @@ using namespace std;
 // The maximum error is then given by the maximum value of M=abs(w(x)-g(x)), where g(x) is such that it maximizes M. The maximum squared error is given by M^2.
 
 // If 
-// rejection_method== tolerance_multiplies_standard_deviation_of_error,
+// rejection_method=Least_trimmed_squares_tolerance_multiplies_standard_deviation_of_error,
 
 // then a point p outside of the best minimal combination is added to the final fit if  error err_p fulfills:
 
@@ -228,12 +285,12 @@ using namespace std;
 
 // If 
 
-// rejection_method==tolerance_is_decision_in_MAD_ESTIMATION, or 
-// tolerance_is_biweight_midvariance, or
-// rejection_method==tolerance_is_decision_in_S_ESTIMATION, or  
-// rejection_method==tolerance_is_decision_in_Q_ESTIMATION, or
-// rejection_method==tolerance_is_decision_in_T_ESTIMATION, 
-// rejection_method==tolerance_is_percentagebased_midvariance, 
+// rejection_method==Least_trimmed_squares_tolerance_is_decision_in_MAD_ESTIMATION, or 
+// rejection_method==Least_trimmed_squares_tolerance_is_biweight_midvariance, or
+// rejection_method==Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, or  
+// rejection_method==Least_trimmed_squares_tolerance_is_decision_in_Q_ESTIMATION, or
+// rejection_method==Least_trimmed_squares_tolerance_is_decision_in_T_ESTIMATION, 
+// rejection_method==Least_trimmed_squares_tolerance_is_percentagebased_midvariance, 
 
 // then, MAD, biweight_midvariance, S, Q, T or percentage based midvariance estimators are used. 
 
@@ -255,7 +312,7 @@ using namespace std;
 
 
 // if 
-// rejection_method==tolerance_is_significance_in_Grubbs_test,
+// rejection_method==Least_trimmed_squares_tolerance_is_significance_in_Grubbs_test,
 //
 // then a point p is added to a minimal combination if its error err_p is not an outlier according to a modified Grubb's test.
 // The tolerance parameter is here a significance value based on student's distribution.
@@ -268,7 +325,7 @@ using namespace std;
 // and then recalculates the test statistic with an updated sample size. This is done for computational speed, and it should correspond to the behavior of Grubb's test with a very large sample size
 // 
 // if 
-// rejection_method==use_peirce_criterion, 
+// rejection_method==Least_trimmed_squares_use_peirce_criterion, 
 
 // then a point is added to a minimal combination if it does fulfill Peirce's criterion for not being an outlier. 
 
@@ -277,29 +334,54 @@ using namespace std;
 
 // tolerance is a parameter that is used for the different rejection methods.
  
+// The trimmed least squares problem is computationally intensive. It increases with the binomial coefficient of the number of points over the maximum number of outliers.
+// Therefore, if more than 24 points are used, the least trimmed squares prolem is often computationally too expensive.
+
+// The library has a different option. It can perform a linear regression with all points and minimize the squared error, but one
+// can choose to linearize errors from points which are deemed to be outliers. This is done with the estimators 
+
+// errorfunction_linear_tolerance_is_maximum_squared_error,
+// errorfunction_linear_tolerance_multiplies_standard_deviation_of_error,
+// errorfunction_linear_tolerance_is_significance_in_Grubbs_test,
+// errorfunction_linear_tolerance_is_decision_in_MAD_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_S_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_Q_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_T_ESTIMATION,
+// errorfunction_linear_use_peirce_criterion,
+// errorfunction_linear_tolerance_is_biweight_midvariance,
+// errorfunction_linear_tolerance_is_percentagebased_midvariance
+
+// The estimators are the same as before in the least trimmed squares approach. 
+// This computation is nevertheless different from the trimmed least squares regression, since all points are still
+// used for the computation of the slope and intercept parameters
+// and just the error function that is used to find the minimum of the hyperbola considers the contributions of
+// as linear influences. 
+
+// similarly, one can chose to set errors that are deemed to be outliers to zero. This is done by the estimators
+// 
+// errorfunction_linear_tolerance_is_maximum_squared_error,
+// errorfunction_linear_tolerance_multiplies_standard_deviation_of_error,
+// errorfunction_linear_tolerance_is_significance_in_Grubbs_test,
+// errorfunction_linear_tolerance_is_decision_in_MAD_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_S_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_Q_ESTIMATION,
+// errorfunction_linear_tolerance_is_decision_in_T_ESTIMATION,
+// errorfunction_linear_use_peirce_criterion,
+// errorfunction_linear_tolerance_is_biweight_midvariance,
+// errorfunction_linear_tolerance_is_percentagebased_midvariance
+
+
+
 // The function returns false on error and true if it is successful.
 
 
-typedef enum
-{
-	no_rejection,
-	tolerance_is_maximum_squared_error,
-	tolerance_multiplies_standard_deviation_of_error,
-	tolerance_is_significance_in_Grubbs_test,
-	tolerance_is_decision_in_MAD_ESTIMATION,
-	tolerance_is_decision_in_S_ESTIMATION,
-	tolerance_is_decision_in_Q_ESTIMATION,
-	tolerance_is_decision_in_T_ESTIMATION,
-	use_peirce_criterion,
-	tolerance_is_biweight_midvariance,
-	tolerance_is_percentagebased_midvariance
-}outlier_criterion;
 
-extern "C" FOCUSINTERPOLATION_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
+
+FOCUSINTERPOLATION_API bool focusposition_Regression(vector<long> x, vector<double> y, long* focpos, double* main_error = NULL, double* main_slope = NULL, double* main_intercept = NULL,
 	vector<size_t>* indices_of_used_points = NULL,
 	vector<double>* usedpoints_line_x = NULL, vector<double>* usedpoints_line_y = NULL, vector<size_t>* indices_of_removedpoints = NULL, vector<double>* removedpoints_line_x = NULL, vector<double>* removedpoints_line_y = NULL,
 	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, long backslash = 0, double scale = 1.5, bool use_median_regression = false,
-	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
 
 
 
@@ -354,7 +436,8 @@ public:
 
 	//returns the power of an image in fourier mode.
 	double invpower();
-
+	//returns the power of an image in fourier mode.
+	double power();
 	//returns the focuser position of the image class
 	long focuser_position();
 
@@ -374,25 +457,46 @@ private:
 	double phfd;
 	double pfwhm;
 	double pinvpower;
+	double ppower;
 	double fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2);
 	double datafilling0(fitsfile* fptr, long focuser_position = LONG_MIN);
 };
 
+
 // focusposition_Regression2 computes the focus point from a vector of validly constructed image classes which must all have status 0.
 // these image classes can be constructed from a path to a fits file, a fits file structure, or an array with image data. The constructor
 // then computes the power spectrum, with which focusposition_Regression2 can work.
-// The parameters of focusposition_Regression2 are similar as in focusposition_Regression: double* main_slope, double* main_intercept 
-// are the slope and intercept for the functions invpower=slope(x-focus_point)^2+intercept, where invpower is the given by the invpower 
-// method if x is the focus motor position of an image class. ínvpower is the inverse of the power function from the fourier analysis. 
-// Currently, the parameter theta is not used. The parameters from focusposition_Regression where the fitted curve is returned
-// in a coordinate system where it is represented by a line are omitted. 
+// The parameters of focusposition_Regression2 are similar as in focusposition_Regression.
+// 
+// However, focusposition_Regression2 fits a function  
+// 
+// Power=1/ (alpha*(x-focpos)^2+gamma) 
+// 
+// if the pointer to beta and theta is not zero, this fit is used as an initial value in a Levenberg-Marquardt algorithm
+// that fits the function 
+// 
+// Power=1/ (alpha*(x-focpos)^2+gamma) +exp(-theta/(alpha*(x-focpos)^2+gamma))/(alpha*(x-focpos)^2+gamma)+beta
+// 
+// if the pointer to theta is zero, the function
+// 
+// Power=1/ (alpha*(x-focpos)^2+gamma)+beta
+// 
+// is fitted.
+// 
+// If the pointer to beta is zero, the function
+// 
+// Power=1/ (alpha*(x-focpos)^2+gamma) +exp(-theta/(alpha*(x-focpos)^2+gamma))/(alpha*(x-focpos)^2+gamma)
+// 
+// is fitted.
+// 
+// Extensive information about the Levenberg - Marquardt algorithm and some techniques used by this application in order to improve convergence can be found in
+// Transtrum, Mark K; Sethna, James P(2012). "Improvements to the Levenberg-Marquardt algorithm for nonlinear least-squares minimization".arXiv:1201.5885
 
-extern "C" FOCUSINTERPOLATION_API bool focusposition_Regression2(vector<image>* images, long* focpos, double* main_error, double* main_slope, double* main_intercept, double* theta,
-	vector<size_t>* indices_of_used_points, vector<size_t>* indices_of_removedpoints, double stop_after_seconds=60, size_t stop_after_numberofiterations_without_improvement= 2000000, long backslash=0, double scale=1.0, bool use_median_regression=false,
-	size_t maximum_number_of_outliers=3, outlier_criterion rejection_method= tolerance_is_decision_in_S_ESTIMATION, double tolerance=3);
 
 
-
+FOCUSINTERPOLATION_API bool focusposition_Regression2(std::vector<image>* images, long* focpos, double* main_error=NULL, double* alpha=NULL, double*beta=NULL, double* gamma=NULL, double* theta = NULL,
+	vector<size_t>* indices_of_used_points=NULL, vector<size_t>* indices_of_removedpoints=NULL, double stop_after_seconds=60, size_t stop_after_numberofiterations_without_improvement=2000000, long backslash=0, double scale=1, bool use_median_regression=false,
+	size_t maximum_number_of_outliers=3, outlier_criterion rejection_method = Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, double tolerance=3);
 // The function findbackslash_Regression finds the focuser backslash from two measurements of the best focus positions. It returns true if successful.
 // The idea to correct for the backslash in this way was first published by Jim Hunt (username JST200) at https://aptforum.com/phpbb/viewtopic.php?p=26265#p26265
 
@@ -401,25 +505,28 @@ extern "C" FOCUSINTERPOLATION_API bool focusposition_Regression2(vector<image>* 
 //
 // optimal_focus_point_2 - optimal_focus_point1
 
-// the parameters main_slope1, main_intercept1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y
-// and main_slope2, main_intercept2, indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y
-// have the same meaning as the corresponding return parameters of focusposition_Regression, just that they are for the two separate datasets x1,y1 and x2,y2.
+// the parameters alpha1, beta1,gamma1, indicesofusedpoints1, used_points1_line_x, used_points1_line_y, indicesofremovedpoints1, removedpoints1_line_x, removedpoints1_line_y
+// and alpha2, beta2, gamma2, indicesofusedpoints2, used_points2_line_x, used_points2_line_y, indicesofremovedpoints2, removedpoints2_line_x, removedpoints2_line_y
+// have the same meaning as the corresponding return parameters of focusposition_Regression2, just that they are for the two separate datasets x1,y1 and x2,y2.
 
 // The parameters stop_after_seconds, stop_after_numberofiterations_without_improvement, maximum_number_of_outliers, tolerance, scale, use_median_regression, use_median_regression
 // have the same meaning as the corresponding parameters in focusposition_Regression and are used for the fits of both datasets.
 
-extern "C" FOCUSINTERPOLATION_API bool findbackslash_Regression(long* backslash,
+FOCUSINTERPOLATION_API bool findbackslash_Regression(long* backslash,
 	vector<long> x1, vector<double> y1, vector<long> x2, vector<double> y2, double* main_error1=NULL, double* main_slope1=NULL, double* main_intercept1=NULL, vector<size_t>*indicesofusedpoints1=NULL,
 	vector<double>*used_points1_line_x=NULL, vector<double>*used_points1_line_y=NULL, vector<size_t>*indicesofremovedpoints1=NULL, vector<double>*removedpoints1_line_x=NULL, vector<double>*removedpoints1_line_y=NULL,
 	double* main_error2=NULL, double* main_slope2=NULL, double* main_intercept2=NULL, vector<size_t>*indicesofusedpoints2 = NULL,
 	vector<double>*used_points2_line_x=NULL, vector<double>*used_points2_line_y=NULL, vector<size_t>*indicesofremovedpoints2=NULL, vector<double>*removedpoints2_line_x=NULL, vector<double>*removedpoints2_line_y=NULL,
 	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.5 ,bool use_median_regression = false,
-	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
+
 
 // The function findbackslash_Regression2 finds the focuser backslash from two interpolations of the best focus positions. In contrast to findbackslash_Regression, it accepts 2 vectors of image classes from 2 consecutive measurements where the 
 // focus motor moved in different directions. The parameter theta is currently not used.
-extern "C" FOCUSINTERPOLATION_API bool findbackslash_Regression2(long* backslash,
-	vector<image>*images1, vector<image>*images2, double* main_error1 = NULL, double* main_slope1 = NULL, double* main_intercept1 = NULL, vector<size_t>*indicesofusedpoints1 = NULL, vector<size_t>*indicesofremovedpoints1 = NULL, 
-	double* main_error2 = NULL, double* main_slope2 = NULL, double* main_intercept2 = NULL, double* theta1=NULL, double* theta2=NULL, vector<size_t>*indicesofusedpoints2 = NULL, vector<size_t>*indicesofremovedpoints2 = NULL, 
+
+
+FOCUSINTERPOLATION_API bool findbackslash_Regression2(long* backslash,
+	vector<image>*images1, vector<image>*images2, double* main_error1 = NULL, double* alpha1 = NULL, double *beta1=NULL,double* gamma1 = NULL, double*theta1=NULL,vector<size_t>*indicesofusedpoints1 = NULL, vector<size_t>*indicesofremovedpoints1 = NULL, 
+	double* main_error2 = NULL, double* alpha2 = NULL, double*beta2=NULL, double* gamma2 = NULL, double* theta2=NULL, vector<size_t>*indicesofusedpoints2 = NULL, vector<size_t>*indicesofremovedpoints2 = NULL, 
 	double stop_after_seconds = 60, size_t stop_after_numberofiterations_without_improvement = 2000000, double scale = 1.0, bool use_median_regression = false,
-	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
+	size_t maximum_number_of_outliers = 3, outlier_criterion rejection_method = Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, double tolerance = 3);
