@@ -1,37 +1,42 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required (VERSION 3.12)
 
 project ("Focusinterpolation")
 
 
-cmake_minimum_required (VERSION 3.8)
-
 
 ###################################################################
+
+## comment out if you do not want to use the beta variable in the Levenberg-Marquardt fit
 
 # Change this path to your Open-CV folder in which the cmake file OpenCVConfig.cmake can be found.
 # Note that even if you use windows, cmake wants / slashes, like on Unixoid systems.
 # A UNIX example for a path would be
-set(OpenCV_DIR "/opt/local/libexec/opencv4/cmake")
+#set(OpenCV_DIR "/opt/local/libexec/opencv4/cmake")
 
 # A Windows example would be
-#set(OpenCV_DIR "C:/opencv/build")
+set(OpenCV_DIR "C:/Users/benja/source/repos/OpenCV/build/")
 
 # Change this path to the folder where the fitsio.h file from cfitsio can be found
 # Note that even if you use windows, cmake wants / slashes, like on Unixoid systems.
 # A UNIX example for a path would be
-set(Cfitsio_INCLUDE_DIR "/opt/local/include")
+# set(Cfitsio_INCLUDE_DIR "/opt/local/include")
 # A Windows example would be
 
-#set(Cfitsio_INCLUDE_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-3.49")
+set(CFITSIO_INCLUDE_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-4.0.0/")
 
 
 # Change this path to the folder where the fitsio.lib file can be found
 # Note that even if you use windows, cmake wants / slashes, like on Unixoid systems.
 # A UNIX example for a path would be
-set(Cfitsio_LIB_DIR "/opt/local/lib")
+#set(Cfitsio_LIB_DIR "/opt/local/lib")
 
 # A Windows example would be
-#set(Cfitsio_LIB_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-3.49/cfitsio.build/Release")
+set(CFITSIO_LIB_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-4.0.0/cfitsio.build/Release/")
+
+
+#Either define the variable LEVENBERG for running a Levenberg-Marquardt algorithm after a simple linear estimation
+#or define the variable GOLDEN_SECTION_SEARCH for running a golden section search over the beta parameter for a better fit
+#if neither variable is defined, then a simple linear fit is used with the beta parameter=0,
 
 
 
@@ -42,31 +47,52 @@ set(Cfitsio_LIB_DIR "/opt/local/lib")
 
 
 ###################################################################
-if (${UNIX})
-    set(UNIXOID TRUE)
-    add_definitions(-DUNIXOID)
-endif()
+
+
+
+
+
+find_path(CFITSIO_INCLUDES fitsio.h ${CFITSIO_INCLUDE_DIR})
+
+find_package(OpenCV REQUIRED )
+
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR} ${CFITSIO_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
+
+find_library(CFITSIO_LIBRARY NAMES cfitsio PATHS ${CFITSIO_LIB_DIR})
+
+include(GenerateExportHeader)
+
+
+ADD_LIBRARY(focusinterpolation  "focusinterpolation.cpp" focusinterpolation.h focusinterpolation_exports.h)
+
+
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)
     add_definitions(-DMACOSX)
+    set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 14)
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+   set(CLANGCOMPILER TRUE)
+   add_definitions(-DCLANGCOMPILER)
+   set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 14)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+   set(GNUCOMPILER TRUE)
+   add_definitions(-DGNUCOMPILER)
+   set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 14)
+endif()
+
+if(MSVC)
+    set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 14)
+    set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD_REQUIRED ON)
+endif()
+
+if(MSVC)
+    target_compile_options(focusinterpolation PUBLIC "/Zc:__cplusplus -openmp:llvm")
+endif()
 
 
-find_path(CFITSIO_INCLUDES fitsio.h ${Cfitsio_INCLUDE_DIR})
-
-find_package(OpenCV REQUIRED )
-
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR} ${Cfitsio_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS})
-
-find_library (CFITSIO_LIBRARY NAMES cfitsio PATHS ${Cfitsio_LIB_DIR})
-
-include(GenerateExportHeader)
-
-ADD_LIBRARY(focusinterpolation  SHARED focusinterpolation.cpp focusinterpolation.h focusinterpolation_exports.h)
 TARGET_LINK_LIBRARIES(focusinterpolation ${CFITSIO_LIBRARY} ${OpenCV_LIBRARIES})
 
 
@@ -77,8 +103,22 @@ GENERATE_EXPORT_HEADER(focusinterpolation
     STATIC_DEFINE SHARED_EXPORTS_BUILT_AS_STATIC)
 
 ADD_EXECUTABLE(FM FM.cpp)
+
+if(MSVC)
+    target_compile_options(FM PUBLIC "/Zc:__cplusplus")
+endif()
+
+set_property(TARGET FM PROPERTY CXX_STANDARD 17)
+set_property(TARGET FM PROPERTY CXX_STANDARD_REQUIRED ON)
+
 TARGET_LINK_LIBRARIES(FM focusinterpolation ${CFITSIO_LIBRARY})
 
 ADD_EXECUTABLE(HFDM HFDM.cpp)
+
+if(MSVC)
+    target_compile_options(HFDM PUBLIC "/Zc:__cplusplus")
+endif()
+
 TARGET_LINK_LIBRARIES(HFDM focusinterpolation ${CFITSIO_LIBRARY})
+
 
