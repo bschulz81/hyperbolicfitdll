@@ -173,29 +173,29 @@ void attempt(vector<long> xv, vector<double> yv, double scale, size_t numberofpo
 	std::cout << mainslope2 << endl << endl;
 
 	std::cout << endl<< endl << "Calculation with S estimator" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance,tolerance_is_decision_in_S_ESTIMATION, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_tolerance_is_decision_in_S_ESTIMATION, seconds);
 
 
 	std::cout << endl << endl << "Calculation with Q estimator" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, tolerance_is_decision_in_Q_ESTIMATION, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_tolerance_is_decision_in_Q_ESTIMATION, seconds);
 
 	std::cout << endl << endl << "Calculation with T estimator" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, tolerance_is_decision_in_T_ESTIMATION, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_tolerance_is_decision_in_T_ESTIMATION, seconds);
 
 	std::cout << endl << endl << "Calculation with MAD estimator" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, tolerance_is_decision_in_MAD_ESTIMATION, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_tolerance_is_decision_in_MAD_ESTIMATION, seconds);
 
 	std::cout << endl << endl << "Calculation with Biweight-Midvarianceestimator" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, tolerance_is_biweight_midvariance, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_tolerance_is_biweight_midvariance, seconds);
 
 	std::cout << endl << endl << "Calculation with Peirce criterion " << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, use_peirce_criterion, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, tolerance, Least_trimmed_squares_use_peirce_criterion, seconds);
 
 	std::cout << endl << endl << "Calculation with Grubbs test and significance 90 criterion " << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, 0.1, tolerance_is_significance_in_Grubbs_test, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, 0.1, Least_trimmed_squares_tolerance_is_significance_in_Grubbs_test, seconds);
 
 	std::cout << endl << endl << "Calculation with standard deviation and average, outliers with 2 sigma over average get removed" << endl;
-	attempt2(xv, yv, scale, numberofpoints, outliers, 2, tolerance_is_significance_in_Grubbs_test, seconds);
+	attempt2(xv, yv, scale, numberofpoints, outliers, 2, Least_trimmed_squares_tolerance_is_significance_in_Grubbs_test, seconds);
 
 }
 
