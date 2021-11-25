@@ -34,12 +34,6 @@ set(CFITSIO_INCLUDE_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-4.0.0/")
 set(CFITSIO_LIB_DIR "C:/Users/benja/source/repos/cfitsio/cfitsio-4.0.0/cfitsio.build/Release/")
 
 
-#Either define the variable LEVENBERG for running a Levenberg-Marquardt algorithm after a simple linear estimation
-#or define the variable GOLDEN_SECTION_SEARCH for running a golden section search over the beta parameter for a better fit
-#if neither variable is defined, then a simple linear fit is used with the beta parameter=0,
-
-
-
 # No further changes to the cmake file should be necessary.
 # However, do not forget to copy the libraries Open-CV and fitsio into the folder of the executables.
 # the focusinterpolation library must also be copied into the same
@@ -84,12 +78,12 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 if(MSVC)
-    set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 14)
+    set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD 17)
     set_property(TARGET focusinterpolation PROPERTY CXX_STANDARD_REQUIRED ON)
 endif()
 
 if(MSVC)
-    target_compile_options(focusinterpolation PUBLIC "/Zc:__cplusplus -openmp:llvm")
+    target_compile_options(focusinterpolation PUBLIC "/Zc:__cplusplus")
 endif()
 
 
