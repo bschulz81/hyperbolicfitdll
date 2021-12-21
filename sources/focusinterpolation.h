@@ -458,7 +458,7 @@ private:
 	double pfwhm;
 	double pinvpower;
 	double ppower;
-	double fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2);
+	double fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2,int bitpix);
 	double datafilling0(fitsfile* fptr, long focuser_position = LONG_MIN);
 };
 

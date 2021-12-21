@@ -84,6 +84,7 @@
 
 #include "focusinterpolation.h"
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include <vector>
 #include <chrono>
 #include <algorithm>
@@ -181,6 +182,7 @@ inline void hyperbola_regression_extendsearcharea(valarray<double>* x, valarray<
 inline void hyperbola_Least_trimmed_squares(double* error, long* focpos, double* slope, double* intercept, valarray<bool>* returnindices, size_t pointnumber, size_t pointnumberhalf, size_t maximum_number_of_outliers, size_t stop_after_numberofiterations_without_improvement, double stop_after_seconds, valarray<bool>* indices, valarray<double>* xv, valarray<double>* line_yv, long minfocus, long maxfocus, double scale, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method);
 inline void hyperbola_findmodel(valarray<double>* x, valarray<double>* line_y, long minfocus, long maxfocus, double scale, valarray<bool>* usedpoint, double tolerance, double additionaldata, bool use_median_regression, outlier_criterion rejection_method, size_t pointnumber, size_t pointnumberhalf);
 inline double median(valarray<double> *arr, size_t n, size_t nhalf);
+inline double median(valarray<float>* arr, size_t n, size_t nhalf);
 inline double lowmedian(valarray<double> *arr, size_t n);
 inline double factorial(size_t n);
 inline double peirce(size_t pointnumber, size_t numberofoutliers, size_t fittingparameters);
@@ -1122,7 +1124,29 @@ inline double median(valarray<double> *arr, size_t n, size_t nhalf)
 	}
 	return med;
 }
+inline double median(valarray<float>* arr, size_t n, size_t nhalf)
+{
 
+#if (__cplusplus == 201703L) && !defined(MACOSX)
+	nth_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr) + n);
+#else
+	nth_element(std::begin(*arr), std::begin(*arr) + nhalf, std::begin(*arr) + n);
+#endif
+
+
+	float  med = (*arr)[nhalf];
+	if (n % 2 == 0)
+	{
+#if __cplusplus == 201703L && !defined(MACOSX)
+		auto max_it = max_element(std::execution::par, std::begin(*arr), std::begin(*arr) + nhalf);
+#else
+		auto max_it = max_element(std::begin(*arr), std::begin(*arr) + nhalf);
+#endif
+
+		med = (*max_it + med) / 2.0;
+	}
+	return med;
+}
 // computes the lower median of an array. expects the size of the array.
 inline double lowmedian(valarray<double> *arr, size_t n)
 {
@@ -2739,7 +2763,7 @@ inline void powerfunction_nonlinear_regression(double* err, valarray<double>* x,
 
 	*alpha = beta(0);
 	*gamma = beta(1);
-	*focpos =round( beta(2));
+	*focpos =(long) round(beta(2));
 
 	if (withtheta)
 		*theta = beta(3);
@@ -4563,7 +4587,7 @@ double image::datafilling0(fitsfile* fptr, long focuser_position)
 		}
 		else
 		{
-			return fouriertransform(NULL, &pimagedata_double, dimension1, dimension2);
+			return fouriertransform(NULL, &pimagedata_double, dimension1, dimension2,bitpix);
 		}
 	}
 	else
@@ -4581,20 +4605,53 @@ double image::datafilling0(fitsfile* fptr, long focuser_position)
 		}
 		else
 		{
-			return fouriertransform(&pimagedata_float, NULL, dimension1, dimension2);
+			return fouriertransform(&pimagedata_float, NULL, dimension1, dimension2,bitpix);
 		}
 	}
 
 }
 
 //analyzes the fourier data of the image and calculates the power. The image data can be either in fload or double.
-double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2)
+double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dimension1, size_t dimension2,int bitpix)
 {
+	double outburnedconst;
+	if (bitpix == 8)
+		outburnedconst = 255;
+	else if (bitpix == 16)
+		outburnedconst = 65535;
+	else if (bitpix == 32)
+		outburnedconst = 4294967295;
+	else if (bitpix == 64)
+		outburnedconst = 18446744073709551615;
+	else if (bitpix == -32)
+		outburnedconst = 3.402823466e38;
+	else if (bitpix == -64)
+		outburnedconst = 1.7976931348623158e308;
 
 	if (p4 != NULL)
 	{
 		//compute the dft of the image
 		Mat I( dimension2, dimension1, CV_32F, (*p4).data());
+
+		double minVal;
+		double maxVal;
+		Point minLoc;
+		Point maxLoc;
+		
+		minMaxLoc(I, &minVal, &maxVal, &minLoc, &maxLoc);
+		if ((maxVal == outburnedconst) && (bitpix!=8))
+		{
+			double c = outburnedconst * 0.01 + minVal;
+			for (size_t i = 0; i < dimension2; i++)
+			{
+				for (size_t j = 0; j < dimension1; j++)
+				{
+					if (I.at<float>(i, j) >= c)
+						I.at<float>(i, j) = c/2;
+				}
+			}
+		}
+
 
 		Mat planes[] = { Mat_<float>(I), Mat::zeros(I.size(), 5) };
 		Mat complexI;
@@ -4607,14 +4664,20 @@ double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dim
 
 		//sum over rows
 		Mat sumcol;
+
+
 		cv::reduce(magI, sumcol, 0, cv::REDUCE_SUM, -1);
+		
 		//compute the offset
 		size_t avestart = (size_t)(round((magI.cols) / 2 - (magI.cols) / 8)) - 1;
 		size_t length1 = (size_t)((magI.cols) / 2)-1 - avestart;
 		Scalar offset = cv::mean(sumcol(cv::Rect(avestart, 0, length1, 1)));
 		//subtract the offset and clip
 		sumcol -= offset;
+
 		sumcol = cv::max(sumcol, 0.0);
+		
+
 		//compute the power
 		size_t start = 1;
 		size_t length2 = (size_t)(magI.cols / 2) - start;
@@ -4634,6 +4697,26 @@ double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dim
 		//compute the fourier transform for a double image
 		Mat I(dimension2, dimension1, CV_64F, (*p5).data());
 
+		double minVal;
+		double maxVal;
+		Point minLoc;
+		Point maxLoc;
+
+		minMaxLoc(I, &minVal, &maxVal, &minLoc, &maxLoc);
+
+		if ((maxVal == outburnedconst) && (bitpix != 8))
+		{
+			double c = outburnedconst * 0.01 + minVal;
+			for (size_t i = 0; i < dimension2; i++)
+			{
+				for (size_t j = 0; j < dimension1; j++)
+				{
+					if (I.at<double>(i, j) >= c)
+						I.at<double>(i, j) = c / 2.0;
+				}
+			}
+		}
+		
 		Mat planes[] = { Mat_<double>(I), Mat::zeros(I.size(), 6) };
 		Mat complexI;
 		merge(planes, 2, complexI);
@@ -4656,6 +4739,8 @@ double image::fouriertransform(vector<float>* p4, vector<double>* p5, size_t dim
 		size_t length2 = (size_t)(magI.cols / 2) - start;
 
 		Scalar power = sum(sumcol(cv::Rect(start, 0, length2, 1)));
+
+
 
 		return power[0] + power[1] + power[2] + power[3];
 	}
@@ -4690,7 +4775,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<double> 
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
 	}
-	ppower=fouriertransform(NULL, imagedata, width, height);
+	ppower=fouriertransform(NULL, imagedata, width, height,-64);
 	pinvpower = 1 / ppower;
 }
 //constructs the image class from a float array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
@@ -4721,7 +4806,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<float> *
 		pstatus = -1;
 		throw std::invalid_argument("dimensions do not correspond to image data size");
 	}
-	ppower = fouriertransform(imagedata, NULL, width, height);
+	ppower = fouriertransform(imagedata, NULL, width, height,-32);
 	pinvpower = 1 / ppower;
 }
 //constructs the image class from a long long array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
@@ -4754,7 +4839,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<long lon
 	}
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	ppower = fouriertransform(&floatvec, NULL, width, height);
+	ppower = fouriertransform(&floatvec, NULL, width, height,64);
 	pinvpower = 1 / ppower;
 }
 //constructs the image class from a long array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
@@ -4789,7 +4874,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<long> * 
 
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	ppower = fouriertransform(&floatvec, NULL, width, height);
+	ppower = fouriertransform(&floatvec, NULL, width, height,32);
 	pinvpower = 1 / ppower;
 }
 //constructs the image class from a short array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
@@ -4823,7 +4908,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<short> *
 
 	
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	ppower = fouriertransform(&floatvec, NULL, width, height);
+	ppower = fouriertransform(&floatvec, NULL, width, height,16);
 	pinvpower = 1 / ppower;
 }
 //constructs the image class from an int8_t array. Width and height are the width and height of the image. The focuser position of the image  must be supplied. The class can also store hfd and fwhm values if supplied. These values are, however, not used
@@ -4858,7 +4943,7 @@ image::image(size_t width, size_t height, long focuser_position, vector<int8_t> 
 
 
 	vector<float>floatvec(imagedata->begin(), imagedata->end());
-	ppower = fouriertransform(&floatvec, NULL, width, height);
+	ppower = fouriertransform(&floatvec, NULL, width, height,8);
 	pinvpower = 1 / ppower;
 
 }

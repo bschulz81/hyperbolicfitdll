@@ -888,8 +888,17 @@ int main(int argc, char** argv)
 			{
 				if(!mapleformat)
 					cout << "Focuser position: " << imv[i].focuser_position() << ", Power function: " << imv[i].power() << endl;
-				else 
-					cout << "[" << imv[i].focuser_position() << "," <<imv[i].power() << "],";
+				else
+				{
+					cout << "[" << imv[i].focuser_position() << "," << imv[i].power();
+					if (i + 1 < imv.size())
+					{
+						cout << "],";
+					}
+					else
+						cout << "]]";
+				}
+
 			}
 			if (writetofile)
 			{
@@ -1118,16 +1127,6 @@ int main(int argc, char** argv)
 	{
 		if (writetofile)
 		{
-			cout <<"simple linear regression" << endl;
-			if (writetofile) myfile1 << endl<< endl <<"simple linear regression" << endl;
-			attempt(&imv, scale, 0, tolerance, estimator, &myfile1, false, documentationlevel, seconds, maxseconds, maxiterations, backslash,bwithbe,bwiththeta,mapleformat);
-
-
-		
-			cout << endl << endl<< "Siegel's median slope" << endl;
-			myfile1 << endl << endl<< "Siegel's median slope" << endl;
-			attempt(&imv, scale, 0, tolerance, estimator, &myfile1, true, documentationlevel, seconds, maxseconds, maxiterations, backslash, bwithbe, bwiththeta,mapleformat);
-
 			if (outliers1 > 0)
 			{
 				cout << endl << endl << "MAD estimation" << endl;
@@ -1178,14 +1177,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			cout << "simple linear regression" << endl;
-			attempt(&imv, scale, 0, tolerance, estimator, NULL, false, documentationlevel, seconds, maxseconds, maxiterations, backslash, bwithbe, bwiththeta,mapleformat);
-
-		
-
-			cout << endl << endl << "Siegel's median slope" << endl;
-			attempt(&imv, scale, 0, tolerance, estimator, NULL, true, documentationlevel, seconds, maxseconds, maxiterations, backslash, bwithbe, bwiththeta,mapleformat);
-
+	
 			if (outliers1 > 0)
 			{
 				cout << endl << endl << "MAD estimation" << endl;
