@@ -1,10 +1,18 @@
-This is an open source library that can help to autofocus telescopes. The library contains 4 functions and a class with 8 constructors and 5 functions.
+This is an open source library that can help to autofocus telescopes.
+
+It implements the algorithm described at Monthly Notices of the Royal Astronomical Society, Volume 511, Issue 2, April 2022, Pages 2008–2020, https://doi.org/10.1093/mnras/stac189 ( for a preprint, see https://arxiv.org/abs/2201.12466 ).
+
+
+
+The library contains 4 functions and a class with 8 constructors and 5 functions.
 
 One function (the earlier one) fits half flux diameter data to a hyperbola, from which the correct focus point can be interpolated. This function has no image analysis, which a third party program must provide on its own.
 
-The new versions of the library contain an image class which can be constructed from a path to a fits file, a fits file structure or an array with image data. The image data is then analyzed in fourier space. A function is provided that takes a vector of image classes constructed from several images and fits it to a parabola. From this, the correct focus point can be determined.
+By now, the library also can analyze images. It contains an image class which can be constructed from a path to a fits file, a fits file structure or an array with image data. The image data is then analyzed in fourier space.
 
-The library is currently used in preview version of the software Astro Photography tool (APT) for the autofocus routine.
+A function is provided that takes a vector of image classes constructed from several images and fits it to a parabola.  Robust statistical methods are used in order to remove outliers. From the result of this calculation, an initial guess of the the correct focus point can be determined, which is then used as starting point in non-linear curve fitting methods, also together with robust statistical methods.
+
+The library is currently used in the software Astro Photography tool (APT) for the autofocus routine.
 
 Two test applications are provided.
 
@@ -67,7 +75,6 @@ which is minimized, is not.
 
 Extensive information about the Levenberg-Marquardt algorithm and some techniques used by this application in order to improve convergence can be found in
 Transtrum, Mark K; Sethna, James P (2012). "Improvements to the Levenberg-Marquardt algorithm for nonlinear least-squares minimization". arXiv:1201.5885
-
 
 
 In the following we describe the test application FM that computes focuspoints from a series of defocused fits files in detail. Then, we describe the functions that the library exports.
