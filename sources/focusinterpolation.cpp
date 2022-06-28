@@ -36,7 +36,7 @@
 //
 
 
-// The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
+// The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) and B. Schulz (second author).
 
 // The library makes use of an algorithm for student's distribution, which can be found at
 // Smiley W. Cheng, James C. Fu, Statistics & Probability Letters 1 (1983), 223-227
