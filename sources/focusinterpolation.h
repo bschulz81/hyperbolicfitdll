@@ -1,3 +1,8 @@
+
+// This library implements the algorithms and procedures described inMonthly Notices of the Royal Astronomical Society,
+// Volume 511, Issue 2, April 2022, Pages 2008–2020, https://doi.org/10.1093/mnras/stac189 
+// ( for a preprint, see https://arxiv.org/abs/2201.12466 ).
+
 // Copyright(c) < 2021 > 
 // <Benjamin Schulz> 
 // Responsible for:
@@ -32,6 +37,10 @@
 // The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
 // (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
 // responsible for data taking and various tests of the fourier analysis algorithm
+
+
+//
+
 
 // The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
 
@@ -79,7 +88,7 @@
 
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files(the "Software"), to deal
+// of this software and associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
