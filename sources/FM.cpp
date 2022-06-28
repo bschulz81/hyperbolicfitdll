@@ -3,7 +3,7 @@
 
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files(the "Software"), to deal
+// of this software and associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
@@ -23,6 +23,10 @@
 // This is a test application for the  curve fitting library that can determine the focus point
 // of a telescope. The test application expects a folder with fits files at different focuser positions and then interpolates
 // the focuser position where the telescope is at focus. 
+
+// The test application then runs the algorithms described in
+// Monthly Notices of the Royal Astronomical Society, Volume 511, Issue 2, April 2022, Pages 2008–2020,
+// https://doi.org/10.1093/mnras/stac189 ( for a preprint, see https://arxiv.org/abs/2201.12466 ).
 
 // In order for this to work, the fits files need to have the focuser position recorded under either one of the following 
 // Keywords: FOCUSPOS,FOCUSERPOS,FOCUSERPOSITION,FOCUSPOSITION,FOCUSMOTORPOSITION,FOCUSMOTORPOS
