@@ -1,3 +1,7 @@
+// This file implements the algorithms and procedures described inMonthly Notices of the Royal Astronomical Society,
+// Volume 511, Issue 2, April 2022, Pages 2008–2020, https://doi.org/10.1093/mnras/stac189 
+// ( for a preprint, see https://arxiv.org/abs/2201.12466 ).
+
 // Copyright(c) < 2021 > 
 // <Benjamin Schulz> 
 // Responsible for:
@@ -26,6 +30,11 @@
 // Its output can be fed into a slightly modified curve fitting algorithm.
 // The suggestion in https://aptforum.com/phpbb/viewtopic.php?p=26471#p26471 to throw out outlier data by comparison of the error with the Standard-deviation.
 // (Note that this old idea is now supplemented by more advanced methods, since the average and standard deviation are not robust.)
+
+
+
+//
+
 
 // The library makes use of an imaging analysis algorithm that was developed by C. Y. Tan (main author) with some contributions from B. Schulz, which is yet to be published.
 
@@ -65,7 +74,7 @@
 // https://github.com/bschulz81/hyperbolicfitdll/ 
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this softwareand associated documentation files(the "Software"), to deal
+// of this software and associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
 // copies of the Software, and to permit persons to whom the Software is
@@ -228,7 +237,8 @@ inline valarray<double> Vector::array()
 inline Vector Vector::operator+(Vector B) {
 	Vector sum(m.size());
 
-	for (size_t i = 0; i < m.size(); i++)
+#pragma omp parallel for
+	for (long i = 0; i < m.size(); i++)
 	{
 		sum(i) = m[i] + B(i);
 	}
@@ -237,7 +247,8 @@ inline Vector Vector::operator+(Vector B) {
 inline Vector Vector::operator-(Vector B) {
 	Vector sum(m.size());
 
-	for (size_t i = 0; i < m.size(); i++)
+#pragma omp parallel for
+	for (long i = 0; i < m.size(); i++)
 	{
 		sum(i) = m[i] - B(i);
 	}
@@ -245,7 +256,9 @@ inline Vector Vector::operator-(Vector B) {
 }
 inline double Vector::operator*(Vector B) {
 	double sum = 0;
-	for (size_t i = 0; i < m.size(); i++)
+
+#pragma omp parallel for
+	for (long i = 0; i < m.size(); i++)
 	{
 		sum += m[i] * B(i);
 	}
@@ -253,7 +266,8 @@ inline double Vector::operator*(Vector B) {
 }
 inline Vector Vector::operator*(double B) {
 	Vector sum(m.size());
-	for (size_t i = 0; i < m.size(); i++)
+#pragma omp parallel for
+	for (long i = 0; i < m.size(); i++)
 	{
 		sum(i) = m[i] * B;
 	}
@@ -263,7 +277,8 @@ inline Vector Vector::operator/(double B) {
 	Vector sum(this->size());
 	if (B != 0)
 	{
-		for (size_t i = 0; i < m.size(); i++)
+#pragma omp parallel for
+		for (long i = 0; i < m.size(); i++)
 		{
 			sum(i) = m[i] / B;
 		}
@@ -285,7 +300,8 @@ inline size_t Vector::size()const
 
 inline Matrix Matrix::Identity(size_t rows, size_t columns) {
 	Matrix m(rows, columns);
-	for (size_t i = 0; i < rows; i++)
+#pragma omp parallel for
+	for (long i = 0; i < rows; i++)
 	{
 		if (i < columns)
 		{
@@ -297,7 +313,9 @@ inline Matrix Matrix::Identity(size_t rows, size_t columns) {
 inline Matrix Matrix::Diagonal() {
 	size_t u = this->Rows();
 	Matrix m1(u, this->Columns());
-	for (size_t i = 0; i < u; i++)
+
+#pragma omp parallel for
+	for (long i = 0; i < u; i++)
 	{
 		m1(i, i) = (*this)(i, i);
 	}
@@ -310,7 +328,8 @@ inline Vector Matrix::Gaussian_algorithm(Matrix* m, Vector* v)
 	Matrix m2(u, t + 1);
 	Vector result(v->size());
 
-	for (size_t i = 0; i < u; i++)
+#pragma omp parallel for
+	for (long i = 0; i < u; i++)
 	{
 		for (size_t j = 0; j < t; j++)
 		{
@@ -318,12 +337,14 @@ inline Vector Matrix::Gaussian_algorithm(Matrix* m, Vector* v)
 		}
 	}
 
-	for (size_t i = 0; i < u; i++)
+#pragma omp parallel for
+	for (long i = 0; i < u; i++)
 	{
 		m2(i, t) = (*v)(i);
 	}
 
-	for (size_t j = 0; j < t; j++)
+#pragma omp parallel for
+	for (long j = 0; j < t; j++)
 	{
 		for (size_t i = 0; i < t; i++)
 		{
@@ -338,7 +359,8 @@ inline Vector Matrix::Gaussian_algorithm(Matrix* m, Vector* v)
 		}
 	}
 
-	for (size_t i = 0; i < t; i++)
+#pragma omp parallel for
+	for (long i = 0; i < t; i++)
 	{
 		result(i) = m2(i, t) / m2(i, i);
 	}
@@ -368,7 +390,8 @@ inline double& Matrix::operator()(size_t row, size_t column)
 
 inline Matrix Matrix::operator+(Matrix B) {
 	Matrix sum(c, r);
-	for (size_t i = 0; i < r; i++)
+#pragma omp parallel for
+	for (long i = 0; i < r; i++)
 	{
 		for (size_t j = 0; j < c; j++)
 		{
@@ -380,7 +403,8 @@ inline Matrix Matrix::operator+(Matrix B) {
 
 inline Matrix Matrix::operator-(Matrix B) {
 	Matrix diff(r, c);
-	for (size_t i = 0; i < r; i++)
+#pragma omp parallel for
+	for (long i = 0; i < r; i++)
 	{
 		for (size_t j = 0; j < c; j++)
 		{
@@ -393,9 +417,11 @@ inline Matrix Matrix::operator-(Matrix B) {
 
 inline Matrix Matrix::operator*(Matrix B) {
 	Matrix multip(r, B.Columns());
+
 	if (c == B.Rows())
 	{
-		for (size_t i = 0; i < r; i++)
+		#pragma omp parallel for
+		for (long i = 0; i < r; i++)
 		{
 			for (size_t j = 0; j < B.Columns(); j++)
 			{
@@ -414,7 +440,8 @@ inline Matrix Matrix::operator*(Matrix B) {
 
 inline Matrix Matrix::operator*(double scalar) {
 	Matrix result(r, c);
-	for (size_t i = 0; i < r; i++)
+	#pragma omp parallel for
+	for (long i = 0; i < r; i++)
 	{
 		for (size_t j = 0; j < c; j++)
 		{
@@ -429,7 +456,8 @@ inline Vector Matrix::operator*(Vector B) {
 	Vector result((this)->Rows());
 	if (B.size() == (this)->Columns())
 	{
-		for (size_t i = 0; i < r; i++)
+		#pragma omp parallel for
+		for (long i = 0; i < r; i++)
 		{
 			double sum = 0;
 			for (size_t j = 0; j < c; j++)
@@ -444,7 +472,8 @@ inline Vector Matrix::operator*(Vector B) {
 
 inline Matrix Matrix::operator/(double scalar) {
 	Matrix result(r, c);
-	for (size_t i = 0; i < r; i++)
+	#pragma omp parallel for
+	for (long i = 0; i < r; i++)
 	{
 		for (size_t j = 0; j < c; j++)
 		{
@@ -467,7 +496,8 @@ inline size_t Matrix::Columns() const
 inline Matrix Matrix::Transpose()
 {
 	Matrix t(c, r);
-	for (size_t i = 0; i < c; i++)
+	#pragma omp parallel for
+	for (long i = 0; i < c; i++)
 	{
 		for (size_t j = 0; j < r; j++) {
 			t(i, j) = (*this)(j, i);
@@ -478,7 +508,8 @@ inline Matrix Matrix::Transpose()
 
 inline void Matrix::printmatrix()
 {
-	for (size_t i = 0; i < (*this).Rows(); i++)
+	#pragma omp parallel for
+	for (long i = 0; i < (*this).Rows(); i++)
 	{
 		for (size_t j = 0; j < (*this).Columns(); j++)
 		{
@@ -491,7 +522,8 @@ inline void Matrix::printmatrix()
 
 inline void Vector::printvector()
 {
-	for (size_t i = 0; i < m.size(); i++)
+	#pragma omp parallel for
+	for (long i = 0; i < m.size(); i++)
 	{
 		cout << m[i] << " ";
 
@@ -509,8 +541,8 @@ inline Matrix Jacobian(Vector* X, Vector* beta, bool withbe, bool withtheta)
 		m1.resize(t, 5);
 
 		double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2), theta = (*beta)(3);
-
-		for (size_t i = 0; i < t; i++)
+		#pragma omp parallel for
+		for (long i = 0; i < t; i++)
 		{
 			double h = (*X)(i) - x0;
 			double c = pow(h, 2.0);
@@ -529,8 +561,8 @@ inline Matrix Jacobian(Vector* X, Vector* beta, bool withbe, bool withtheta)
 	{
 
 		double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2), theta = (*beta)(3);
-
-		for (size_t i = 0; i < t; i++)
+		#pragma omp parallel for
+		for (long i = 0; i < t; i++)
 		{
 			double h = (*X)(i) - x0;
 			double c = pow(h, 2.0);
@@ -546,7 +578,8 @@ inline Matrix Jacobian(Vector* X, Vector* beta, bool withbe, bool withtheta)
 	}
 	else if (!withtheta && withbe)
 	{
-		for (size_t i = 0; i < t; i++)
+		#pragma omp parallel for
+		for (long i = 0; i < t; i++)
 		{
 			double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2);
 			double h = (*X)(i) - x0;
@@ -570,8 +603,8 @@ inline Vector f(Vector* X, Vector* beta,bool withbe,bool withtheta)
 	if (withbe && withtheta)
 	{
 		double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2), theta = (*beta)(3),be= (*beta)(4);
-
-		for (size_t i = 0; i < (*X).size(); i++)
+		#pragma omp parallel for
+		for (long i = 0; i < (*X).size(); i++)
 		{
 			double w = alpha * pow((*X)(i) - x0, 2.0) + gamma;
 			m(i) = 1.0 / w + exp(-theta / w) / w + be;
@@ -580,8 +613,8 @@ inline Vector f(Vector* X, Vector* beta,bool withbe,bool withtheta)
 	else if(!withbe && withtheta)
 	{
 		double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2), theta = (*beta)(3);
-
-		for (size_t i = 0; i < (*X).size(); i++)
+		#pragma omp parallel for
+		for (long i = 0; i < (*X).size(); i++)
 		{
 			double w = alpha * pow((*X)(i) - x0, 2.0) + gamma;
 			m(i) = 1.0 / w + exp(-theta / w) / w;
@@ -590,8 +623,8 @@ inline Vector f(Vector* X, Vector* beta,bool withbe,bool withtheta)
 	else if (withbe && !withtheta)
 	{
 		double alpha = (*beta)(0), gamma = (*beta)(1), x0 = (*beta)(2), be=(*beta)(3);
-
-		for (size_t i = 0; i < (*X).size(); i++)
+		#pragma omp parallel for
+		for (long i = 0; i < (*X).size(); i++)
 		{
 			double w = alpha * pow((*X)(i) - x0, 2.0) + gamma;
 			m(i) = 1.0 / w + be;
