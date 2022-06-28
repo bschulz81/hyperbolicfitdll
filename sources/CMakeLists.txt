@@ -1,12 +1,7 @@
-﻿cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.12)
 
 project ("Focusinterpolation")
 
-
-
-###################################################################
-
-## comment out if you do not want to use the beta variable in the Levenberg-Marquardt fit
 
 # Change this path to your Open-CV folder in which the cmake file OpenCVConfig.cmake can be found.
 # Note that even if you use windows, cmake wants / slashes, like on Unixoid systems.
