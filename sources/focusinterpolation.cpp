@@ -104,13 +104,11 @@
 #include <unordered_set>
 #include <complex>
 #include <cmath>
-
+#include <omp.h>
 using namespace cv;
 #if __cplusplus == 201703L
-#include <mutex>
-#include <execution>
-#else
-#include <omp.h>
+	#include <mutex>
+	#include <execution>
 #endif
 
 
